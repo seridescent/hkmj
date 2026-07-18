@@ -1,4 +1,4 @@
-I hope for `hkmj` to be a personal project monorepo to house program explorations on what Wikipedia currently calls "Old Hong Kong mahjong", the ruleset my family plays. I'm not very practiced at mahjong, but I do find it fairly fun, so I figured this could both put me in more contact with the game and yield some interesting programming work.
+I hope for `hkmj` to be a personal project monorepo to house program explorations on what Wikipedia currently calls "Old Hong Kong mahjong", which appears to be basically the ruleset my family plays. I'm not very practiced at mahjong, but I do find it fairly fun, so I figured this could both put me in more contact with the game and yield some interesting programming work.
 
 I expect implementing the core ruleset and gameloop to be fairly straightforward, with the most interesting bits probably being structuring abstractions for varied use-cases and verification. Afterwards, I'm primarily thinking of educational explorations into improving mahjong decision-making in language models. I figure this will motivate the way I write my code and be a low-stakes way to dip my toes into evaluation and probably RL. 
 
