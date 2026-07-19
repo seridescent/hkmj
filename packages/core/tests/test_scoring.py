@@ -15,7 +15,6 @@ from hkmj_core import (
     Direction,
     Dragon,
     DragonMeld,
-    FaanEntry,
     Flower,
     FlowerOfOwnWind,
     FromDiscard,
@@ -29,6 +28,7 @@ from hkmj_core import (
     MixedOneSuit,
     NoBonusTiles,
     Number,
+    Pattern,
     PlayerState,
     PlayTile,
     PrevailingWind,
@@ -49,7 +49,8 @@ from hkmj_core import (
     WinSource,
     Wind,
     meld_sort_key,
-    score,
+    count_faan,
+    pattern_faan,
     tile_sort_key,
     valid_actions,
 )
@@ -90,8 +91,8 @@ def win_state(
     )
 
 
-def entry_set(state: State) -> set[FaanEntry]:
-    return set(score(state).entries)
+def pattern_set(state: State) -> set[Pattern]:
+    return set(count_faan(state).patterns)
 
 
 COMMON_HAND = (
@@ -103,8 +104,8 @@ COMMON_HAND = (
 
 def test_common_hand() -> None:
     state = win_state(hand=COMMON_HAND)
-    assert entry_set(state) == {CommonHand(), ConcealedHand()}
-    assert score(state).total == 2
+    assert pattern_set(state) == {CommonHand(), ConcealedHand()}
+    assert count_faan(state).total == 2
 
 
 def test_all_in_triplets() -> None:
@@ -114,16 +115,16 @@ def test_all_in_triplets() -> None:
         *suited("myriad", 7, 7, 7),
         *suited("dot", 2, 2),
     )
-    assert entry_set(win_state(hand=hand)) == {AllInTriplets(), ConcealedHand()}
+    assert pattern_set(win_state(hand=hand)) == {AllInTriplets(), ConcealedHand()}
 
 
-def test_flush_scores_best_reading() -> None:
+def test_flush_counts_best_reading() -> None:
     state = win_state(hand=(*suited("dot", 1, 1, 1, 2, 2, 2, 3, 3, 3, 9, 9),))
-    s = score(state)
+    count = count_faan(state)
     # Pung reading: triplets 3 + one suit 7 + concealed 1 beats the chow
     # reading: common 1 + one suit 7 + concealed 1.
-    assert AllInTriplets() in s.entries
-    assert s.total == 11
+    assert AllInTriplets() in count.patterns
+    assert count.total == 11
 
 
 def test_mixed_one_suit_with_prevailing_wind() -> None:
@@ -133,7 +134,7 @@ def test_mixed_one_suit_with_prevailing_wind() -> None:
         Wind("east"),
         Wind("east"),
     )
-    assert entry_set(win_state(hand=hand)) == {
+    assert pattern_set(win_state(hand=hand)) == {
         MixedOneSuit(),
         PrevailingWind(),
         ConcealedHand(),
@@ -154,7 +155,7 @@ def test_great_dragons() -> None:
         *suited("bamboo", 5, 6, 7),
         *suited("dot", 1, 1),
     )
-    assert entry_set(win_state(hand=hand)) == {
+    assert pattern_set(win_state(hand=hand)) == {
         GreatDragons(),
         DragonMeld("red"),
         DragonMeld("green"),
@@ -176,7 +177,7 @@ def test_small_dragons() -> None:
         Dragon("white"),
         Dragon("white"),
     )
-    assert entry_set(win_state(hand=hand)) == {
+    assert pattern_set(win_state(hand=hand)) == {
         SmallDragons(),
         DragonMeld("red"),
         DragonMeld("green"),
@@ -201,7 +202,7 @@ def test_small_winds_stacks_per_reference() -> None:
     )
     # The reference notes small winds implies mixed one suit and stacks with
     # seat/prevailing wind faan.
-    assert entry_set(win_state(hand=hand)) == {
+    assert pattern_set(win_state(hand=hand)) == {
         SmallWinds(),
         MixedOneSuit(),
         SeatWind(),
@@ -221,7 +222,7 @@ def test_double_wind_counts_twice() -> None:
         *suited("dot", 5, 5),
     )
     state = win_state(hand=hand, winner="east", source=FromDiscard("west"))
-    assert entry_set(state) == {
+    assert pattern_set(state) == {
         SeatWind(),
         PrevailingWind(),
         ConcealedHand(),
@@ -230,7 +231,7 @@ def test_double_wind_counts_twice() -> None:
 
 def test_flower_of_own_wind() -> None:
     state = win_state(hand=COMMON_HAND, bonus=(Flower(2), Season(3)))
-    assert entry_set(state) == {
+    assert pattern_set(state) == {
         CommonHand(),
         ConcealedHand(),
         FlowerOfOwnWind(),
@@ -242,7 +243,7 @@ def test_all_flowers_replaces_own_flower() -> None:
         hand=COMMON_HAND,
         bonus=(Flower(1), Flower(2), Flower(3), Flower(4), Season(2)),
     )
-    assert entry_set(state) == {
+    assert pattern_set(state) == {
         CommonHand(),
         ConcealedHand(),
         AllFlowers(),
@@ -251,12 +252,12 @@ def test_all_flowers_replaces_own_flower() -> None:
 
 
 def test_no_bonus_tiles() -> None:
-    assert NoBonusTiles() in entry_set(win_state(hand=COMMON_HAND, bonus=()))
+    assert NoBonusTiles() in pattern_set(win_state(hand=COMMON_HAND, bonus=()))
 
 
 def test_self_pick_and_kong_replacement() -> None:
-    assert SelfPick() in entry_set(win_state(hand=COMMON_HAND, source=FromWall()))
-    replacement = entry_set(
+    assert SelfPick() in pattern_set(win_state(hand=COMMON_HAND, source=FromWall()))
+    replacement = pattern_set(
         win_state(hand=COMMON_HAND, source=FromWall(replacement=True))
     )
     assert {SelfPick(), WinByKong()} <= replacement
@@ -264,30 +265,31 @@ def test_self_pick_and_kong_replacement() -> None:
 
 def test_robbing_the_kong() -> None:
     state = win_state(hand=COMMON_HAND, source=FromRobbedKong("east"))
-    assert RobbingTheKong() in entry_set(state)
+    assert RobbingTheKong() in pattern_set(state)
 
 
 def test_win_by_last_catch() -> None:
-    assert WinByLastCatch() in entry_set(win_state(hand=COMMON_HAND, wall=()))
+    assert WinByLastCatch() in pattern_set(win_state(hand=COMMON_HAND, wall=()))
 
 
 def test_heavenly_hand_is_capped() -> None:
     state = win_state(
         hand=COMMON_HAND, winner="east", source=FromWall(), first_turn=True
     )
-    assert HeavenlyHand() in entry_set(state)
-    assert score(state).total == 13
+    assert HeavenlyHand() in pattern_set(state)
+    assert count_faan(state).total == 13
 
 
-def test_faan_cap_applies() -> None:
+def test_injected_faan_counting_can_change_the_cap() -> None:
+    capped = Rules(faan=lambda patterns: min(8, sum(map(pattern_faan, patterns))))
     state = win_state(
         hand=(*suited("dot", 1, 1, 1, 2, 2, 2, 3, 3, 3, 9, 9),),
-        rules=Rules(faan_cap=8),
+        rules=capped,
     )
-    assert score(state).total == 8
+    assert count_faan(state).total == 8
 
 
-def test_chicken_hand_scores_zero() -> None:
+def test_chicken_hand_counts_zero() -> None:
     # A pung among chows, three suits, no honors, open meld, won by discard:
     # nothing fires.
     state = win_state(
@@ -298,14 +300,14 @@ def test_chicken_hand_scores_zero() -> None:
         ),
         melds=(Chow("myriad", 1),),
     )
-    assert score(state).entries == ()
-    assert score(state).total == 0
+    assert count_faan(state).patterns == ()
+    assert count_faan(state).total == 0
 
 
-def test_score_requires_a_win() -> None:
+def test_count_faan_requires_a_win() -> None:
     state = win_state(hand=COMMON_HAND)
     with pytest.raises(ValueError):
-        score(replace(state, phase=HandOver(Goulash())))
+        count_faan(replace(state, phase=HandOver(Goulash())))
 
 
 def test_min_faan_gates_declare_win() -> None:

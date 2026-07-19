@@ -40,7 +40,7 @@ from hkmj_core.actions import (
 from hkmj_core.hands import has_decomposition
 from hkmj_core.melds import Chow, ChowStart, Kong, Meld, Pung, meld_sort_key
 from hkmj_core.rules import Rules
-from hkmj_core.scoring import score
+from hkmj_core.scoring import count_faan
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -211,7 +211,10 @@ def _can_declare(
     hand = state.players[winner].hand
     if len(hand) % 3 != 1 or not has_decomposition((*hand, tile)):
         return False
-    return score(_win_state(state, winner, tile, source)).total >= state.rules.min_faan
+    return (
+        count_faan(_win_state(state, winner, tile, source)).total
+        >= state.rules.min_faan
+    )
 
 
 def step(state: State, actions: Mapping[Direction, Action]) -> State:
@@ -293,7 +296,7 @@ def _claims(
         best = max(
             winners,
             key=lambda seat: (
-                score(_win_state(state, seat, tile, FromDiscard(discarder))).total
+                count_faan(_win_state(state, seat, tile, FromDiscard(discarder))).total
             ),
         )
         return _win_state(state, best, tile, FromDiscard(discarder))
@@ -379,7 +382,9 @@ def _rob(
         best = max(
             winners,
             key=lambda seat: (
-                score(_win_state(state, seat, tile, FromRobbedKong(promoter))).total
+                count_faan(
+                    _win_state(state, seat, tile, FromRobbedKong(promoter))
+                ).total
             ),
         )
         return _win_state(state, best, tile, FromRobbedKong(promoter))

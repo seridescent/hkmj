@@ -24,7 +24,7 @@ from hkmj_core import (
     deal,
     full_tile_set,
     meld_sort_key,
-    score,
+    count_faan,
     step,
     tile_sort_key,
     valid_actions,
@@ -91,7 +91,7 @@ def assert_invariants(state: State) -> None:
     # Any win the engine allowed must satisfy the table minimum.
     match state.phase:
         case HandOver(outcome=Win()):
-            assert score(state).total >= state.rules.min_faan
+            assert count_faan(state).total >= state.rules.min_faan
         case _:
             pass
 
