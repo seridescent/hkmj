@@ -38,8 +38,9 @@ class AwaitingDiscard:
     discard (the distinction matters for self-pick scoring)."""
     replacement: bool = False
     """Whether `drawn` came from the back of the wall (a kong or bonus-tile
-    replacement), which grants win-by-kong faan on a win. TODO: win by
-    double-kong (8 faan) needs chained provenance."""
+    replacement), which grants win-by-kong faan on a win. Chained provenance
+    for win-by-double-kong is intentionally not tracked: too rare to earn
+    the complexity."""
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,13 +6,22 @@ hypothetical ones alike, so gating, winner resolution, and final scoring
 all agree by construction.
 
 A hand may admit several decompositions; each is scored independently and
-the best reading wins. Entries are itemized so consumers (rewards, UIs,
-eval graders) can see exactly which patterns fired, not just a number.
+the best reading wins.
 
-TODO: limit hands (score as hand + winning condition only, ignoring
-wind/dragon/flower faan).
+Identification is separated from valuation: an entry is a per-pattern
+frozen dataclass recording only the fact that the pattern fired, and
+`default_faan` maps entries to the reference faan values. Consumers
+(rewards, UIs, eval graders) can match on exactly which patterns fired, and
+variant valuations only need a different function.
+
+Win by double-kong (槓上槓) is intentionally not modeled: it would thread
+chained draw provenance through two phase types for a vanishingly rare
+event.
+
+TODO: limit hands. They ignore honor and bonus faan, so they arrive as a
+separate `LimitScore` variant whose entry type excludes `HonorFaan` and
+`BonusFaan` structurally, with `Score` becoming a union.
 TODO: seven pairs and thirteen orphans as additional readings.
-TODO: win by double-kong (8 faan) once chained draw provenance exists.
 """
 
 from collections.abc import Iterator
@@ -32,6 +41,7 @@ from hkmj_core.tiles import (
     Bonus,
     Direction,
     Dragon,
+    DragonColor,
     Flower,
     PlayTile,
     Season,
@@ -42,16 +52,195 @@ from hkmj_core.tiles import (
 
 
 @dataclass(frozen=True, slots=True)
-class FaanEntry:
-    name: str
-    faan: int
+class CommonHand:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AllInTriplets:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class MixedOrphans:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class MixedOneSuit:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AllOneSuit:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class SmallDragons:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class GreatDragons:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class SmallWinds:
+    pass
+
+
+type HandFaan = (
+    CommonHand
+    | AllInTriplets
+    | MixedOrphans
+    | MixedOneSuit
+    | AllOneSuit
+    | SmallDragons
+    | GreatDragons
+    | SmallWinds
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SeatWind:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class PrevailingWind:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class DragonMeld:
+    color: DragonColor
+
+
+type HonorFaan = SeatWind | PrevailingWind | DragonMeld
+
+
+@dataclass(frozen=True, slots=True)
+class NoBonusTiles:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class FlowerOfOwnWind:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class SeasonOfOwnWind:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AllFlowers:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AllSeasons:
+    pass
+
+
+type BonusFaan = (
+    NoBonusTiles | FlowerOfOwnWind | SeasonOfOwnWind | AllFlowers | AllSeasons
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SelfPick:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class WinByKong:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class RobbingTheKong:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class ConcealedHand:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class WinByLastCatch:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class HeavenlyHand:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class EarthlyHand:
+    pass
+
+
+type WinConditionFaan = (
+    SelfPick
+    | WinByKong
+    | RobbingTheKong
+    | ConcealedHand
+    | WinByLastCatch
+    | HeavenlyHand
+    | EarthlyHand
+)
+
+type FaanEntry = HandFaan | HonorFaan | BonusFaan | WinConditionFaan
+
+
+def default_faan(entry: FaanEntry) -> int:
+    """Faan value from the reference tables.
+
+    The match is exhaustive over `FaanEntry`, so the type checker flags any
+    pattern added without a valuation.
+    """
+    match entry:
+        case (
+            CommonHand()
+            | MixedOrphans()
+            | SeatWind()
+            | PrevailingWind()
+            | DragonMeld()
+            | NoBonusTiles()
+            | FlowerOfOwnWind()
+            | SeasonOfOwnWind()
+            | SelfPick()
+            | WinByKong()
+            | RobbingTheKong()
+            | ConcealedHand()
+            | WinByLastCatch()
+        ):
+            return 1
+        case AllFlowers() | AllSeasons():
+            return 2
+        case AllInTriplets() | MixedOneSuit() | SmallDragons():
+            return 3
+        case GreatDragons():
+            return 5
+        case SmallWinds():
+            return 6
+        case AllOneSuit():
+            return 7
+        case HeavenlyHand() | EarthlyHand():
+            return 13
 
 
 @dataclass(frozen=True, slots=True)
 class Score:
     entries: tuple[FaanEntry, ...]
     total: int
-    """Sum of entries, capped at the table's faan cap."""
+    """Sum of the entries' faan values, capped at the table's faan cap."""
 
 
 def score(state: State) -> Score:
@@ -76,34 +265,32 @@ def score(state: State) -> Score:
 def _score_reading(state: State, win: Win, decomp: Decomposition) -> Score:
     player = state.players[win.winner]
     melds = (*player.melds, *decomp.melds)
-    entries = (
+    entries: tuple[FaanEntry, ...] = (
         *_hand_entries(melds, decomp.eyes),
         *_honor_meld_entries(melds, win.winner, state.prevailing),
         *_bonus_entries(player.bonus, win.winner),
         *_win_condition_entries(state, win, player.melds),
     )
-    return Score(
-        entries=entries,
-        total=min(state.rules.faan_cap, sum(e.faan for e in entries)),
-    )
+    total = sum(default_faan(entry) for entry in entries)
+    return Score(entries=entries, total=min(state.rules.faan_cap, total))
 
 
-def _hand_entries(melds: tuple[Meld, ...], eyes: PlayTile) -> Iterator[FaanEntry]:
+def _hand_entries(melds: tuple[Meld, ...], eyes: PlayTile) -> Iterator[HandFaan]:
     tiles = [t for meld in melds for t in _distinct_tiles(meld)] + [eyes]
     suits = {t.suit for t in tiles if isinstance(t, Suited)}
     has_honors = any(not isinstance(t, Suited) for t in tiles)
 
     if melds and all(isinstance(m, Chow) for m in melds):
-        yield FaanEntry("common hand", 1)
+        yield CommonHand()
     if melds and all(isinstance(m, Pung | Kong) for m in melds):
-        yield FaanEntry("all in triplets", 3)
+        yield AllInTriplets()
         if all(_is_orphan(t) for t in tiles):
-            yield FaanEntry("mixed orphans", 1)
+            yield MixedOrphans()
     if len(suits) == 1:
         if has_honors:
-            yield FaanEntry("mixed one suit", 3)
+            yield MixedOneSuit()
         else:
-            yield FaanEntry("all one suit", 7)
+            yield AllOneSuit()
 
     dragon_melds = {
         m.tile.color
@@ -111,9 +298,9 @@ def _hand_entries(melds: tuple[Meld, ...], eyes: PlayTile) -> Iterator[FaanEntry
         if isinstance(m, Pung | Kong) and isinstance(m.tile, Dragon)
     }
     if len(dragon_melds) == 3:
-        yield FaanEntry("great dragons", 5)
+        yield GreatDragons()
     elif len(dragon_melds) == 2 and isinstance(eyes, Dragon):
-        yield FaanEntry("small dragons", 3)
+        yield SmallDragons()
 
     wind_melds = {
         m.tile.direction
@@ -121,70 +308,70 @@ def _hand_entries(melds: tuple[Meld, ...], eyes: PlayTile) -> Iterator[FaanEntry
         if isinstance(m, Pung | Kong) and isinstance(m.tile, Wind)
     }
     if len(wind_melds) == 3 and isinstance(eyes, Wind):
-        yield FaanEntry("small winds", 6)
+        yield SmallWinds()
 
 
 def _honor_meld_entries(
     melds: tuple[Meld, ...], seat: Direction, prevailing: Direction
-) -> Iterator[FaanEntry]:
+) -> Iterator[HonorFaan]:
     for meld in melds:
         if not isinstance(meld, Pung | Kong):
             continue
         match meld.tile:
             case Wind(direction=direction):
                 if direction == seat:
-                    yield FaanEntry("seat wind", 1)
+                    yield SeatWind()
                 if direction == prevailing:
-                    yield FaanEntry("prevailing wind", 1)
+                    yield PrevailingWind()
             case Dragon(color=color):
-                yield FaanEntry(f"{color} dragon", 1)
+                yield DragonMeld(color)
             case _:
                 pass
 
 
-def _bonus_entries(bonus: tuple[Bonus, ...], seat: Direction) -> Iterator[FaanEntry]:
+def _bonus_entries(bonus: tuple[Bonus, ...], seat: Direction) -> Iterator[BonusFaan]:
     if not bonus:
-        yield FaanEntry("no bonus tiles", 1)
+        yield NoBonusTiles()
         return
     flowers = {t.number for t in bonus if isinstance(t, Flower)}
     seasons = {t.number for t in bonus if isinstance(t, Season)}
     if len(flowers) == 4:
-        yield FaanEntry("all flowers", 2)
+        yield AllFlowers()
     elif any(bonus_direction(n) == seat for n in flowers):
-        yield FaanEntry("flower of own wind", 1)
+        yield FlowerOfOwnWind()
     if len(seasons) == 4:
-        yield FaanEntry("all seasons", 2)
+        yield AllSeasons()
     elif any(bonus_direction(n) == seat for n in seasons):
-        yield FaanEntry("season of own wind", 1)
+        yield SeasonOfOwnWind()
 
 
 def _win_condition_entries(
     state: State, win: Win, declared: tuple[Meld, ...]
-) -> Iterator[FaanEntry]:
+) -> Iterator[WinConditionFaan]:
     match win.source:
         case FromWall(replacement=replacement):
-            yield FaanEntry("self-pick", 1)
+            yield SelfPick()
             if replacement:
-                yield FaanEntry("win by kong", 1)
+                yield WinByKong()
         case FromRobbedKong():
-            yield FaanEntry("robbing the kong", 1)
+            yield RobbingTheKong()
         case FromDiscard():
             pass
 
     # Concealed kongs do not break a concealed hand.
     if all(isinstance(m, Kong) and m.concealed for m in declared):
-        yield FaanEntry("concealed hand", 1)
+        yield ConcealedHand()
 
     if not state.wall and isinstance(win.source, FromWall | FromDiscard):
-        yield FaanEntry("win by last catch", 1)
+        yield WinByLastCatch()
 
     # First-turn wins, approximated as "no discard is on record anywhere".
     if all(not p.discards for p in state.players.values()):
         dealer = state.rules.seats[0]
         if win.winner == dealer and isinstance(win.source, FromWall):
-            yield FaanEntry("heavenly hand", 13)
+            yield HeavenlyHand()
         elif isinstance(win.source, FromDiscard) and win.source.discarder == dealer:
-            yield FaanEntry("earthly hand", 13)
+            yield EarthlyHand()
 
 
 def _distinct_tiles(meld: Meld) -> tuple[PlayTile, ...]:

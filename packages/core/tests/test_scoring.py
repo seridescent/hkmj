@@ -4,28 +4,48 @@ import pytest
 
 from hkmj_core import (
     DIRECTIONS,
+    AllFlowers,
+    AllInTriplets,
     AwaitingClaims,
     Bonus,
     Chow,
+    CommonHand,
+    ConcealedHand,
     DeclareWin,
     Direction,
     Dragon,
+    DragonMeld,
+    FaanEntry,
     Flower,
+    FlowerOfOwnWind,
     FromDiscard,
     FromRobbedKong,
     FromWall,
     Goulash,
+    GreatDragons,
     HandOver,
+    HeavenlyHand,
     Meld,
+    MixedOneSuit,
+    NoBonusTiles,
     Number,
     PlayerState,
     PlayTile,
+    PrevailingWind,
+    RobbingTheKong,
     Rules,
     Season,
+    SeasonOfOwnWind,
+    SeatWind,
+    SelfPick,
+    SmallDragons,
+    SmallWinds,
     State,
     Suit,
     Suited,
     Win,
+    WinByKong,
+    WinByLastCatch,
     WinSource,
     Wind,
     meld_sort_key,
@@ -70,8 +90,8 @@ def win_state(
     )
 
 
-def faan_set(state: State) -> set[tuple[str, int]]:
-    return {(e.name, e.faan) for e in score(state).entries}
+def entry_set(state: State) -> set[FaanEntry]:
+    return set(score(state).entries)
 
 
 COMMON_HAND = (
@@ -83,7 +103,7 @@ COMMON_HAND = (
 
 def test_common_hand() -> None:
     state = win_state(hand=COMMON_HAND)
-    assert faan_set(state) == {("common hand", 1), ("concealed hand", 1)}
+    assert entry_set(state) == {CommonHand(), ConcealedHand()}
     assert score(state).total == 2
 
 
@@ -94,10 +114,7 @@ def test_all_in_triplets() -> None:
         *suited("myriad", 7, 7, 7),
         *suited("dot", 2, 2),
     )
-    assert faan_set(win_state(hand=hand)) == {
-        ("all in triplets", 3),
-        ("concealed hand", 1),
-    }
+    assert entry_set(win_state(hand=hand)) == {AllInTriplets(), ConcealedHand()}
 
 
 def test_flush_scores_best_reading() -> None:
@@ -105,7 +122,7 @@ def test_flush_scores_best_reading() -> None:
     s = score(state)
     # Pung reading: triplets 3 + one suit 7 + concealed 1 beats the chow
     # reading: common 1 + one suit 7 + concealed 1.
-    assert ("all in triplets", 3) in {(e.name, e.faan) for e in s.entries}
+    assert AllInTriplets() in s.entries
     assert s.total == 11
 
 
@@ -116,10 +133,10 @@ def test_mixed_one_suit_with_prevailing_wind() -> None:
         Wind("east"),
         Wind("east"),
     )
-    assert faan_set(win_state(hand=hand)) == {
-        ("mixed one suit", 3),
-        ("prevailing wind", 1),
-        ("concealed hand", 1),
+    assert entry_set(win_state(hand=hand)) == {
+        MixedOneSuit(),
+        PrevailingWind(),
+        ConcealedHand(),
     }
 
 
@@ -137,12 +154,12 @@ def test_great_dragons() -> None:
         *suited("bamboo", 5, 6, 7),
         *suited("dot", 1, 1),
     )
-    assert faan_set(win_state(hand=hand)) == {
-        ("great dragons", 5),
-        ("red dragon", 1),
-        ("green dragon", 1),
-        ("white dragon", 1),
-        ("concealed hand", 1),
+    assert entry_set(win_state(hand=hand)) == {
+        GreatDragons(),
+        DragonMeld("red"),
+        DragonMeld("green"),
+        DragonMeld("white"),
+        ConcealedHand(),
     }
 
 
@@ -159,11 +176,11 @@ def test_small_dragons() -> None:
         Dragon("white"),
         Dragon("white"),
     )
-    assert faan_set(win_state(hand=hand)) == {
-        ("small dragons", 3),
-        ("red dragon", 1),
-        ("green dragon", 1),
-        ("concealed hand", 1),
+    assert entry_set(win_state(hand=hand)) == {
+        SmallDragons(),
+        DragonMeld("red"),
+        DragonMeld("green"),
+        ConcealedHand(),
     }
 
 
@@ -184,12 +201,12 @@ def test_small_winds_stacks_per_reference() -> None:
     )
     # The reference notes small winds implies mixed one suit and stacks with
     # seat/prevailing wind faan.
-    assert faan_set(win_state(hand=hand)) == {
-        ("small winds", 6),
-        ("mixed one suit", 3),
-        ("seat wind", 1),
-        ("prevailing wind", 1),
-        ("concealed hand", 1),
+    assert entry_set(win_state(hand=hand)) == {
+        SmallWinds(),
+        MixedOneSuit(),
+        SeatWind(),
+        PrevailingWind(),
+        ConcealedHand(),
     }
 
 
@@ -204,19 +221,19 @@ def test_double_wind_counts_twice() -> None:
         *suited("dot", 5, 5),
     )
     state = win_state(hand=hand, winner="east", source=FromDiscard("west"))
-    assert faan_set(state) == {
-        ("seat wind", 1),
-        ("prevailing wind", 1),
-        ("concealed hand", 1),
+    assert entry_set(state) == {
+        SeatWind(),
+        PrevailingWind(),
+        ConcealedHand(),
     }
 
 
 def test_flower_of_own_wind() -> None:
     state = win_state(hand=COMMON_HAND, bonus=(Flower(2), Season(3)))
-    assert faan_set(state) == {
-        ("common hand", 1),
-        ("concealed hand", 1),
-        ("flower of own wind", 1),
+    assert entry_set(state) == {
+        CommonHand(),
+        ConcealedHand(),
+        FlowerOfOwnWind(),
     }
 
 
@@ -225,40 +242,40 @@ def test_all_flowers_replaces_own_flower() -> None:
         hand=COMMON_HAND,
         bonus=(Flower(1), Flower(2), Flower(3), Flower(4), Season(2)),
     )
-    assert faan_set(state) == {
-        ("common hand", 1),
-        ("concealed hand", 1),
-        ("all flowers", 2),
-        ("season of own wind", 1),
+    assert entry_set(state) == {
+        CommonHand(),
+        ConcealedHand(),
+        AllFlowers(),
+        SeasonOfOwnWind(),
     }
 
 
 def test_no_bonus_tiles() -> None:
-    assert ("no bonus tiles", 1) in faan_set(win_state(hand=COMMON_HAND, bonus=()))
+    assert NoBonusTiles() in entry_set(win_state(hand=COMMON_HAND, bonus=()))
 
 
 def test_self_pick_and_kong_replacement() -> None:
-    assert ("self-pick", 1) in faan_set(win_state(hand=COMMON_HAND, source=FromWall()))
-    replacement = faan_set(
+    assert SelfPick() in entry_set(win_state(hand=COMMON_HAND, source=FromWall()))
+    replacement = entry_set(
         win_state(hand=COMMON_HAND, source=FromWall(replacement=True))
     )
-    assert {("self-pick", 1), ("win by kong", 1)} <= replacement
+    assert {SelfPick(), WinByKong()} <= replacement
 
 
 def test_robbing_the_kong() -> None:
     state = win_state(hand=COMMON_HAND, source=FromRobbedKong("east"))
-    assert ("robbing the kong", 1) in faan_set(state)
+    assert RobbingTheKong() in entry_set(state)
 
 
 def test_win_by_last_catch() -> None:
-    assert ("win by last catch", 1) in faan_set(win_state(hand=COMMON_HAND, wall=()))
+    assert WinByLastCatch() in entry_set(win_state(hand=COMMON_HAND, wall=()))
 
 
 def test_heavenly_hand_is_capped() -> None:
     state = win_state(
         hand=COMMON_HAND, winner="east", source=FromWall(), first_turn=True
     )
-    assert ("heavenly hand", 13) in faan_set(state)
+    assert HeavenlyHand() in entry_set(state)
     assert score(state).total == 13
 
 
