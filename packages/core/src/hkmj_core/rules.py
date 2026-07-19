@@ -30,5 +30,5 @@ class Rules:
 
     melds_to_win: int = 4
     """k: a winning hand is k melds plus eyes, so players hold 3k + 1 tiles.
-    Smaller k plays a shorter, motif-preserving game; limit hands assume
-    k = 4."""
+    Smaller k plays a shorter, motif-preserving game; limit hands only fire
+    with four melds, so reduced games never reward limit-chasing."""

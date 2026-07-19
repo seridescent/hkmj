@@ -37,10 +37,10 @@ from hkmj_core.actions import (
     Pass,
     PromoteKong,
 )
-from hkmj_core.hands import has_decomposition
+from hkmj_core.counting import count_faan
+from hkmj_core.hands import has_decomposition, is_thirteen_orphans
 from hkmj_core.melds import Chow, ChowStart, Kong, Meld, Pung, meld_sort_key
 from hkmj_core.rules import Rules
-from hkmj_core.counting import count_faan
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -209,7 +209,11 @@ def _can_declare(
     """Whether `winner` may declare with `tile`: hand shape plus the table
     minimum, judged by scoring the hypothetical win itself."""
     hand = state.players[winner].hand
-    if len(hand) % 3 != 1 or not has_decomposition((*hand, tile)):
+    if len(hand) % 3 != 1:
+        return False
+
+    pool = (*hand, tile)
+    if not (has_decomposition(pool) or is_thirteen_orphans(pool)):
         return False
     return (
         count_faan(_win_state(state, winner, tile, source)).total

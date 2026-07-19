@@ -165,7 +165,56 @@ type WinConditionPattern = (
     | EarthlyHand
 )
 
-type Pattern = HandPattern | HonorPattern | BonusPattern | WinConditionPattern
+
+@dataclass(frozen=True, slots=True)
+class AllHonorTiles:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class SelfTriplets:
+    """Every meld a concealed pung or kong, won by self-pick or by a
+    discard completing the eyes."""
+
+
+@dataclass(frozen=True, slots=True)
+class Orphans:
+    """Pungs/kongs of ones and nines only — no honors, unlike MixedOrphans."""
+
+
+@dataclass(frozen=True, slots=True)
+class NineGates:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class GreatWinds:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class AllKongs:
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class ThirteenOrphans:
+    pass
+
+
+type LimitHand = (
+    AllHonorTiles
+    | SelfTriplets
+    | Orphans
+    | NineGates
+    | GreatWinds
+    | AllKongs
+    | ThirteenOrphans
+)
+
+type Pattern = (
+    HandPattern | HonorPattern | BonusPattern | WinConditionPattern | LimitHand
+)
 
 type FaanCounting = Callable[[tuple[Pattern, ...]], int]
 """Values a reading's patterns as a faan total, capping included."""
@@ -204,7 +253,15 @@ def pattern_faan(pattern: Pattern) -> int:
             return 6
         case AllOneSuit():
             return 7
-        case HeavenlyHand() | EarthlyHand():
+        case AllHonorTiles() | SelfTriplets() | Orphans() | NineGates():
+            return 10
+        case (
+            HeavenlyHand()
+            | EarthlyHand()
+            | GreatWinds()
+            | AllKongs()
+            | ThirteenOrphans()
+        ):
             return 13
 
 

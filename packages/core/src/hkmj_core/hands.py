@@ -6,9 +6,8 @@ full hand reduces to: does any decomposition of the concealed tiles exist?
 The target meld count k (4 in standard play) never appears here — hand sizes
 enforce it upstream.
 
-Special hands that are not melds-plus-eyes shaped (thirteen orphans, seven
-pairs) are deliberately out of scope; they will be separate predicates gated
-by rules config.
+Thirteen orphans, the one limit hand that is not melds-plus-eyes shaped,
+gets its own predicate here.
 """
 
 from collections import Counter
@@ -17,7 +16,17 @@ from dataclasses import dataclass
 from typing import cast
 
 from hkmj_core.melds import Chow, ChowStart, Pung, meld_sort_key
-from hkmj_core.tiles import Number, PlayTile, Suited, tile_sort_key
+from hkmj_core.tiles import (
+    DIRECTIONS,
+    DRAGON_COLORS,
+    SUITS,
+    Dragon,
+    Number,
+    PlayTile,
+    Suited,
+    Wind,
+    tile_sort_key,
+)
 
 type ConcealedMeld = Chow | Pung
 """A meld hidden in the concealed hand — kongs only exist once declared."""
@@ -49,6 +58,21 @@ def decompositions(tiles: Iterable[PlayTile]) -> Iterator[Decomposition]:
         for melds in _melds(counts, distinct):
             yield Decomposition(eyes, tuple(sorted(melds, key=meld_sort_key)))
         counts[eyes] += 2
+
+
+ORPHAN_KINDS: frozenset[PlayTile] = frozenset(
+    {Suited(suit, number) for suit in SUITS for number in (1, 9)}
+    | {Wind(direction) for direction in DIRECTIONS}
+    | {Dragon(color) for color in DRAGON_COLORS}
+)
+"""The thirteen terminal and honor kinds."""
+
+
+def is_thirteen_orphans(tiles: Iterable[PlayTile]) -> bool:
+    """Whether the concealed tiles are the thirteen-orphans limit hand:
+    every terminal and honor kind, exactly one of them duplicated."""
+    pool = list(tiles)
+    return len(pool) == 14 and set(pool) == ORPHAN_KINDS
 
 
 def has_decomposition(tiles: Iterable[PlayTile]) -> bool:

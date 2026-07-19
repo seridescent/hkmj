@@ -4,8 +4,10 @@ import pytest
 
 from hkmj_core import (
     DIRECTIONS,
+    ORPHAN_KINDS,
     AllFlowers,
     AllInTriplets,
+    AllKongs,
     AwaitingClaims,
     Bonus,
     Chow,
@@ -22,12 +24,18 @@ from hkmj_core import (
     FromWall,
     Goulash,
     GreatDragons,
+    GreatWinds,
     HandOver,
     HeavenlyHand,
+    Kong,
+    LimitCount,
     Meld,
     MixedOneSuit,
+    NineGates,
     NoBonusTiles,
     Number,
+    OrdinaryCount,
+    Orphans,
     Pattern,
     PlayerState,
     PlayTile,
@@ -38,11 +46,13 @@ from hkmj_core import (
     SeasonOfOwnWind,
     SeatWind,
     SelfPick,
+    SelfTriplets,
     SmallDragons,
     SmallWinds,
     State,
     Suit,
     Suited,
+    ThirteenOrphans,
     Win,
     WinByKong,
     WinByLastCatch,
@@ -71,6 +81,7 @@ def win_state(
     wall: tuple[PlayTile, ...] = (Wind("north"),),
     rules: Rules | None = None,
     first_turn: bool = False,
+    winning_tile: PlayTile | None = None,
 ) -> State:
     players = {d: PlayerState(hand=()) for d in DIRECTIONS}
     players[winner] = PlayerState(
@@ -81,7 +92,11 @@ def win_state(
     if not first_turn:  # a discard on record suppresses heavenly/earthly
         bystander = next(d for d in DIRECTIONS if d != winner)
         players[bystander] = replace(players[bystander], discards=(Suited("dot", 1),))
-    win = Win(winner, hand[0], source if source is not None else FromDiscard("east"))
+    win = Win(
+        winner,
+        winning_tile if winning_tile is not None else hand[0],
+        source if source is not None else FromDiscard("east"),
+    )
     return State(
         rules=rules if rules is not None else Rules(),
         wall=wall,
@@ -92,7 +107,9 @@ def win_state(
 
 
 def pattern_set(state: State) -> set[Pattern]:
-    return set(count_faan(state).patterns)
+    count = count_faan(state)
+    assert isinstance(count, OrdinaryCount)
+    return set(count.patterns)
 
 
 COMMON_HAND = (
@@ -121,6 +138,7 @@ def test_all_in_triplets() -> None:
 def test_flush_counts_best_reading() -> None:
     state = win_state(hand=(*suited("dot", 1, 1, 1, 2, 2, 2, 3, 3, 3, 9, 9),))
     count = count_faan(state)
+    assert isinstance(count, OrdinaryCount)
     # Pung reading: triplets 3 + one suit 7 + concealed 1 beats the chow
     # reading: common 1 + one suit 7 + concealed 1.
     assert AllInTriplets() in count.patterns
@@ -300,8 +318,10 @@ def test_chicken_hand_counts_zero() -> None:
         ),
         melds=(Chow("myriad", 1),),
     )
-    assert count_faan(state).patterns == ()
-    assert count_faan(state).total == 0
+    count = count_faan(state)
+    assert isinstance(count, OrdinaryCount)
+    assert count.patterns == ()
+    assert count.total == 0
 
 
 def test_count_faan_requires_a_win() -> None:
@@ -338,3 +358,119 @@ def test_min_faan_gates_declare_win() -> None:
 
     lenient = replace(state, rules=Rules(min_faan=0))
     assert DeclareWin() in valid_actions(lenient)["south"]
+
+
+def winds(*directions: Direction) -> tuple[Wind, ...]:
+    return tuple(Wind(d) for d in directions)
+
+
+def test_ordinary_reading_can_beat_a_limit_reading() -> None:
+    # "Ineligible for additional faan" restricts what a limit reading may
+    # count, not which reading is taken: here ordinary counting (triplets,
+    # mixed orphans, small dragons, both wind faan, two dragon melds,
+    # self-pick, concealed) reaches 13 and beats all-honor-tiles' 10 + 2.
+    hand = (
+        *winds("south", "south", "south", "east", "east", "east"),
+        Dragon("red"),
+        Dragon("red"),
+        Dragon("red"),
+        Dragon("green"),
+        Dragon("green"),
+        Dragon("green"),
+        Dragon("white"),
+        Dragon("white"),
+    )
+    count = count_faan(win_state(hand=hand, source=FromWall()))
+    assert isinstance(count, OrdinaryCount)
+    assert count.total == 13
+
+
+def test_limit_hands_require_four_melds() -> None:
+    # A two-meld all-honor hand is not the all-honor-tiles limit hand:
+    # reduced games never reward limit-chasing.
+    hand = (
+        *winds("south", "south", "south", "east", "east", "east"),
+        Dragon("red"),
+        Dragon("red"),
+    )
+    assert isinstance(count_faan(win_state(hand=hand)), OrdinaryCount)
+
+
+def test_great_winds_beats_all_honor_tiles() -> None:
+    # Non-stacking among limit criteria: only the highest applies.
+    hand = (
+        *winds("east", "east", "east", "south", "south", "south"),
+        *winds("west", "west", "west", "north", "north", "north"),
+        Dragon("red"),
+        Dragon("red"),
+    )
+    count = count_faan(win_state(hand=hand))
+    assert isinstance(count, LimitCount)
+    assert count.hand == GreatWinds()
+    assert count.total == 13
+
+
+def test_orphans() -> None:
+    hand = (
+        *suited("dot", 1, 1, 1, 9, 9, 9),
+        *suited("bamboo", 1, 1, 1, 9, 9, 9),
+        *suited("myriad", 1, 1),
+    )
+    count = count_faan(win_state(hand=hand))
+    assert count == LimitCount(Orphans(), (ConcealedHand(),), 11)
+
+
+def test_self_triplets_requires_self_pick_or_pair_completion() -> None:
+    hand = (
+        *suited("dot", 1, 1, 1, 7, 7, 7),
+        *suited("bamboo", 3, 3, 3),
+        *suited("myriad", 5, 5, 5),
+        *suited("dot", 9, 9),
+    )
+    self_pick = count_faan(win_state(hand=hand, source=FromWall()))
+    assert self_pick == LimitCount(SelfTriplets(), (SelfPick(),), 11)
+
+    pair_completion = count_faan(win_state(hand=hand, winning_tile=Suited("dot", 9)))
+    assert pair_completion == LimitCount(SelfTriplets(), (), 10)
+
+    meld_completion = count_faan(win_state(hand=hand, winning_tile=Suited("dot", 1)))
+    assert isinstance(meld_completion, OrdinaryCount)
+
+
+def test_nine_gates() -> None:
+    hand = (*suited("bamboo", 1, 1, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 9, 9),)
+    count = count_faan(win_state(hand=hand, source=FromWall()))
+    # Definitionally concealed: no separate concealed-hand faan.
+    assert count == LimitCount(NineGates(), (SelfPick(),), 11)
+
+
+def test_all_kongs() -> None:
+    melds = (
+        Kong(Suited("dot", 8), concealed=False),
+        Kong(Suited("bamboo", 5), concealed=False),
+        Kong(Wind("north"), concealed=False),
+        Kong(Suited("dot", 4), concealed=False),
+    )
+    count = count_faan(win_state(hand=(*suited("myriad", 9, 9),), melds=melds))
+    assert isinstance(count, LimitCount)
+    assert count.hand == AllKongs()
+    assert count.total == 13
+
+
+def test_thirteen_orphans_counts_and_is_declarable() -> None:
+    orphans = tuple(sorted(ORPHAN_KINDS, key=tile_sort_key))
+    count = count_faan(win_state(hand=(*orphans, Wind("east"))))
+    assert count == LimitCount(ThirteenOrphans(), (), 13)
+
+    # The shape is not melds-plus-eyes, so the win gate must admit it.
+    players = {d: PlayerState(hand=()) for d in DIRECTIONS}
+    players["east"] = PlayerState(hand=(), discards=(Suited("dot", 1),))
+    players["south"] = PlayerState(hand=orphans, bonus=(Flower(3),))
+    state = State(
+        rules=Rules(),
+        wall=(Wind("north"),),
+        prevailing="east",
+        players=players,
+        phase=AwaitingClaims("east", Wind("west")),
+    )
+    assert DeclareWin() in valid_actions(state)["south"]

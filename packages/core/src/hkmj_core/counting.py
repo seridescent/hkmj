@@ -5,28 +5,31 @@ engine constructs those via a single path (`_win_state`), for real wins and
 hypothetical ones alike, so gating, winner resolution, and final counting
 all agree by construction.
 
-A hand may admit several decompositions; each reading's patterns are
-identified here, valued by the rules' injected `FaanCounting`, and the best
-reading wins.
+A hand may admit several readings — ordinary decompositions and limit
+criteria — each valued by the rules' injected `FaanCounting`, and the best
+reading wins. A limit reading is ineligible for hand, honor, and bonus faan
+(win-condition faan still stacks), which `LimitCount`'s shape encodes; it
+competes with ordinary readings on value like any other reading, so an
+injected valuation that inverts the usual ordering still counts correctly.
 
 Win by double-kong (槓上槓) is intentionally not modeled: it would thread
 chained draw provenance through two phase types for a vanishingly rare
-event.
+event. Seven pairs is likewise intentionally unsupported: a variant hand
+this ruleset does not play.
 
-TODO: limit hands. They ignore honor and bonus faan, so they arrive as a
-separate variant whose pattern type excludes `HonorPattern` and
-`BonusPattern` structurally.
-TODO: seven pairs and thirteen orphans as additional readings.
-TODO: faan-to-points conversion (full/half spicy) and payments, as a layer
-on top of `FaanCount`.
+TODO: faan-to-points conversion (full/half spicy) and payments, as a
+scoring layer on top of `FaanCount`.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 
 from hkmj_core.faan import (
     AllFlowers,
+    AllHonorTiles,
     AllInTriplets,
+    AllKongs,
     AllOneSuit,
     AllSeasons,
     BonusPattern,
@@ -36,31 +39,38 @@ from hkmj_core.faan import (
     EarthlyHand,
     FlowerOfOwnWind,
     GreatDragons,
+    GreatWinds,
     HandPattern,
     HeavenlyHand,
     HonorPattern,
+    LimitHand,
     MixedOneSuit,
     MixedOrphans,
+    NineGates,
     NoBonusTiles,
+    Orphans,
     Pattern,
     PrevailingWind,
     RobbingTheKong,
     SeasonOfOwnWind,
     SeatWind,
     SelfPick,
+    SelfTriplets,
     SmallDragons,
     SmallWinds,
+    ThirteenOrphans,
     WinByKong,
     WinByLastCatch,
     WinConditionPattern,
 )
-from hkmj_core.hands import Decomposition, decompositions
+from hkmj_core.hands import Decomposition, decompositions, is_thirteen_orphans
 from hkmj_core.melds import Chow, Kong, Meld, Pung
 from hkmj_core.state import (
     FromDiscard,
     FromRobbedKong,
     FromWall,
     HandOver,
+    PlayerState,
     State,
     Win,
 )
@@ -78,10 +88,22 @@ from hkmj_core.tiles import (
 
 
 @dataclass(frozen=True, slots=True)
-class FaanCount:
+class OrdinaryCount:
     patterns: tuple[Pattern, ...]
     total: int
     """The rules' valuation of the patterns (capping included)."""
+
+
+@dataclass(frozen=True, slots=True)
+class LimitCount:
+    hand: LimitHand
+    conditions: tuple[WinConditionPattern, ...]
+    """Only win-condition faan stacks with a limit hand; ineligibility for
+    hand, honor, and bonus faan is what this type's shape encodes."""
+    total: int
+
+
+type FaanCount = OrdinaryCount | LimitCount
 
 
 def count_faan(state: State) -> FaanCount:
@@ -95,24 +117,103 @@ def count_faan(state: State) -> FaanCount:
         case _:
             raise ValueError("only winning states can be counted")
     player = state.players[win.winner]
-    readings = [
-        _count_reading(state, win, decomp) for decomp in decompositions(player.hand)
-    ]
-    if not readings:
+    conditions = tuple(_win_condition_patterns(state, win, player.melds))
+
+    counts: list[FaanCount] = []
+    for decomp in decompositions(player.hand):
+        melds = (*player.melds, *decomp.melds)
+        patterns: tuple[Pattern, ...] = (
+            *_hand_patterns(melds, decomp.eyes),
+            *_honor_meld_patterns(melds, win.winner, state.prevailing),
+            *_bonus_patterns(player.bonus, win.winner),
+            *conditions,
+        )
+        counts.append(OrdinaryCount(patterns, state.rules.faan(patterns)))
+
+        for limit in _decomposition_limit_hands(win, player.melds, decomp):
+            counts.append(_limit_count(state, limit, conditions))
+
+    for limit in _special_shape_limit_hands(player):
+        counts.append(_limit_count(state, limit, conditions))
+
+    if not counts:
         raise ValueError("winner's hand has no winning reading")
-    return max(readings, key=lambda count: count.total)
+    return max(counts, key=lambda count: count.total)
 
 
-def _count_reading(state: State, win: Win, decomp: Decomposition) -> FaanCount:
-    player = state.players[win.winner]
-    melds = (*player.melds, *decomp.melds)
-    patterns: tuple[Pattern, ...] = (
-        *_hand_patterns(melds, decomp.eyes),
-        *_honor_meld_patterns(melds, win.winner, state.prevailing),
-        *_bonus_patterns(player.bonus, win.winner),
-        *_win_condition_patterns(state, win, player.melds),
-    )
-    return FaanCount(patterns=patterns, total=state.rules.faan(patterns))
+_DEFINITIONALLY_CONCEALED = (SelfTriplets, NineGates, ThirteenOrphans)
+"""Limit hands that are concealed by definition and so earn no separate
+concealed-hand faan."""
+
+
+def _limit_count(
+    state: State, hand: LimitHand, conditions: tuple[WinConditionPattern, ...]
+) -> LimitCount:
+    if isinstance(hand, _DEFINITIONALLY_CONCEALED):
+        conditions = tuple(c for c in conditions if not isinstance(c, ConcealedHand))
+    return LimitCount(hand, conditions, state.rules.faan((hand, *conditions)))
+
+
+def _decomposition_limit_hands(
+    win: Win, declared: tuple[Meld, ...], decomp: Decomposition
+) -> Iterator[LimitHand]:
+    melds = (*declared, *decomp.melds)
+    # Limit criteria are defined for the standard four-meld hand. Reduced
+    # games deliberately never fire them: two concealed pungs at k = 2
+    # should not teach limit-chasing that full-game play won't reward.
+    if len(melds) != 4:
+        return
+    tiles = [t for meld in melds for t in _distinct_tiles(meld)] + [decomp.eyes]
+
+    if all(not isinstance(t, Suited) for t in tiles):
+        yield AllHonorTiles()
+
+    if all(isinstance(t, Suited) and t.number in (1, 9) for t in tiles) and all(
+        isinstance(m, Pung | Kong) for m in melds
+    ):
+        yield Orphans()
+
+    if all(isinstance(m, Kong) for m in melds):
+        yield AllKongs()
+
+    wind_melds = {
+        m.tile.direction
+        for m in melds
+        if isinstance(m, Pung | Kong) and isinstance(m.tile, Wind)
+    }
+    if len(wind_melds) == 4:
+        yield GreatWinds()
+
+    if (
+        all(isinstance(m, Kong) and m.concealed for m in declared)
+        and all(isinstance(m, Pung) for m in decomp.melds)
+        and (
+            isinstance(win.source, FromWall)
+            or (isinstance(win.source, FromDiscard) and win.winning_tile == decomp.eyes)
+        )
+    ):
+        yield SelfTriplets()
+
+
+def _special_shape_limit_hands(player: PlayerState) -> Iterator[LimitHand]:
+    """Limit hands identified from the whole concealed hand rather than one
+    decomposition; both require a fully concealed hand."""
+    if player.melds:
+        return
+    if is_thirteen_orphans(player.hand):
+        yield ThirteenOrphans()
+    if _is_nine_gates(player.hand):
+        yield NineGates()
+
+
+def _is_nine_gates(tiles: tuple[PlayTile, ...]) -> bool:
+    suited = [t for t in tiles if isinstance(t, Suited)]
+    if len(suited) != len(tiles) or len({t.suit for t in suited}) != 1:
+        return False
+
+    counts = Counter(t.number for t in suited)
+    counts.subtract(Counter({1: 3, 9: 3, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1}))
+    return all(n >= 0 for n in counts.values()) and counts.total() == 1
 
 
 def _hand_patterns(melds: tuple[Meld, ...], eyes: PlayTile) -> Iterator[HandPattern]:
