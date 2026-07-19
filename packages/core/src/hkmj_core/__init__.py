@@ -14,6 +14,12 @@ from hkmj_core.actions import (
     RobAction,
     TurnAction,
 )
+from hkmj_core.hands import (
+    ConcealedMeld,
+    Decomposition,
+    decompositions,
+    has_decomposition,
+)
 from hkmj_core.melds import (
     CHOW_STARTS,
     Chow,
@@ -84,8 +90,10 @@ __all__ = [
     "ClaimChow",
     "ClaimKong",
     "ClaimPung",
+    "ConcealedMeld",
     "DeclareConcealedKong",
     "DeclareWin",
+    "Decomposition",
     "Discard",
     "Direction",
     "Dragon",
@@ -118,7 +126,9 @@ __all__ = [
     "WinSource",
     "Wind",
     "bonus_direction",
+    "decompositions",
     "full_tile_set",
+    "has_decomposition",
     "meld_sort_key",
     "next_seat",
     "tile_sort_key",

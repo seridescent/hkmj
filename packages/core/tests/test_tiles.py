@@ -52,6 +52,11 @@ def test_turn_order_cycles() -> None:
     assert next_seat("north") == "east"
 
 
+def test_turn_order_skips_absent_seats() -> None:
+    assert next_seat("west", ("east", "south", "west")) == "east"
+    assert next_seat("east", ("east",)) == "east"
+
+
 def test_bonus_direction() -> None:
     assert bonus_direction(1) == "east"
     assert bonus_direction(4) == "north"

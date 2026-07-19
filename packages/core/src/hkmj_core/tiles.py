@@ -5,6 +5,7 @@ Each variant is its own frozen dataclass, so the class is the discriminant:
 needing a literal tag field.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Literal
 
@@ -64,9 +65,20 @@ NUMBERS: tuple[Number, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 BONUS_NUMBERS: tuple[BonusNumber, ...] = (1, 2, 3, 4)
 
 
-def next_seat(direction: Direction) -> Direction:
-    """The seat that acts after `direction` in regular turn order."""
-    return DIRECTIONS[(DIRECTIONS.index(direction) + 1) % 4]
+def next_seat(
+    direction: Direction, seats: Collection[Direction] = DIRECTIONS
+) -> Direction:
+    """The seat that acts after `direction` in regular turn order.
+
+    `seats` is the set of occupied seats, for reduced-player games; absent
+    seats are skipped.
+    """
+    i = DIRECTIONS.index(direction)
+    for step in (1, 2, 3, 4):
+        candidate = DIRECTIONS[(i + step) % 4]
+        if candidate in seats:
+            return candidate
+    raise ValueError("seats is empty")
 
 
 def bonus_direction(number: BonusNumber) -> Direction:
