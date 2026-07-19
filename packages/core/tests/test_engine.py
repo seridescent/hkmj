@@ -24,6 +24,7 @@ from hkmj_core import (
     deal,
     full_tile_set,
     meld_sort_key,
+    score,
     step,
     tile_sort_key,
     valid_actions,
@@ -31,10 +32,11 @@ from hkmj_core import (
 
 RULESETS = (
     Rules(),
-    # Reduced game: short trajectories, and random play actually wins
-    # sometimes, so the win paths get exercised too.
-    Rules(seats=("east", "west"), melds_to_win=2),
-    Rules(seats=("east", "south", "west"), melds_to_win=3),
+    # Reduced games: short trajectories, and with chicken hands legal
+    # (min_faan=0) random play actually wins sometimes, so the win paths
+    # get exercised too.
+    Rules(seats=("east", "west"), melds_to_win=2, min_faan=0),
+    Rules(seats=("east", "south", "west"), melds_to_win=3, min_faan=0),
 )
 
 
@@ -85,6 +87,13 @@ def assert_invariants(state: State) -> None:
         assert player.hand == tuple(sorted(player.hand, key=tile_sort_key))
         assert player.melds == tuple(sorted(player.melds, key=meld_sort_key))
         assert player.bonus == tuple(sorted(player.bonus, key=tile_sort_key))
+
+    # Any win the engine allowed must satisfy the table minimum.
+    match state.phase:
+        case HandOver(outcome=Win()):
+            assert score(state).total >= state.rules.min_faan
+        case _:
+            pass
 
 
 @given(

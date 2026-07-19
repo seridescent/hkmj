@@ -31,6 +31,7 @@ from hkmj_core.melds import (
     meld_sort_key,
 )
 from hkmj_core.rules import Rules
+from hkmj_core.scoring import FaanEntry, Score, score
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -100,6 +101,7 @@ __all__ = [
     "Direction",
     "Dragon",
     "DragonColor",
+    "FaanEntry",
     "Flower",
     "FromDiscard",
     "FromRobbedKong",
@@ -119,6 +121,7 @@ __all__ = [
     "Pung",
     "RobAction",
     "Rules",
+    "Score",
     "Season",
     "State",
     "Suit",
@@ -135,6 +138,7 @@ __all__ = [
     "has_decomposition",
     "meld_sort_key",
     "next_seat",
+    "score",
     "step",
     "tile_sort_key",
     "valid_actions",

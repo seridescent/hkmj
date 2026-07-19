@@ -13,8 +13,11 @@ from hkmj_core.tiles import DIRECTIONS, Direction
 @dataclass(frozen=True, slots=True)
 class Rules:
     min_faan: int = 3
-    """Table minimum for a declarable win. TODO: enforce once scoring lands;
-    DeclareWin eligibility is currently shape-only."""
+    """Table minimum for a declarable win; 0 permits chicken hands."""
+
+    faan_cap: int = 13
+    """Limit on a hand's total faan; tables commonly lower it (e.g. 8) to
+    reduce stakes."""
 
     seats: tuple[Direction, ...] = DIRECTIONS
     """Occupied seats in turn order; seats[0] is the dealer. Fewer than four

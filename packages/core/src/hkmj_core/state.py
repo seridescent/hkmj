@@ -36,6 +36,10 @@ class AwaitingDiscard:
     drawn: PlayTile | None
     """The tile just drawn, or None when the 14th tile came from a claimed
     discard (the distinction matters for self-pick scoring)."""
+    replacement: bool = False
+    """Whether `drawn` came from the back of the wall (a kong or bonus-tile
+    replacement), which grants win-by-kong faan on a win. TODO: win by
+    double-kong (8 faan) needs chained provenance."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +68,9 @@ class AwaitingKongRob:
 @dataclass(frozen=True, slots=True)
 class FromWall:
     """Self-pick: the winner drew the winning tile (doubles the base payment)."""
+
+    replacement: bool = False
+    """Winning tile was a kong or bonus-tile replacement draw (win by kong)."""
 
 
 @dataclass(frozen=True, slots=True)

@@ -40,6 +40,7 @@ from hkmj_core.actions import (
 from hkmj_core.hands import has_decomposition
 from hkmj_core.melds import Chow, ChowStart, Kong, Meld, Pung, meld_sort_key
 from hkmj_core.rules import Rules
+from hkmj_core.scoring import score
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -117,24 +118,24 @@ def valid_actions(state: State) -> Mapping[Direction, frozenset[Action]]:
 
     Totality contract with `step`: submitted actions must cover exactly the
     seats returned here, each choosing from its set. Sets are never empty
-    (claim windows always contain Pass). DeclareWin is gated only on hand
-    shape until scoring brings the minimum-faan requirement.
+    (claim windows always contain Pass). DeclareWin requires hand shape plus
+    the table minimum, judged by scoring the hypothetical win.
     """
     match state.phase:
-        case AwaitingDiscard(seat=seat, drawn=drawn):
-            return {seat: _turn_actions(state.players[seat], drawn)}
+        case AwaitingDiscard() as phase:
+            return {phase.seat: _turn_actions(state, phase)}
         case AwaitingClaims(discarder=discarder, tile=tile):
             chow_seat = next_seat(discarder, state.rules.seats)
             return {
                 seat: _claim_actions(
-                    state.players[seat], tile, chow_allowed=seat == chow_seat
+                    state, seat, discarder, tile, chow_allowed=seat == chow_seat
                 )
                 for seat in state.rules.seats
                 if seat != discarder
             }
         case AwaitingKongRob(seat=promoter, tile=tile):
             return {
-                seat: _rob_actions(state.players[seat], tile)
+                seat: _rob_actions(state, seat, promoter, tile)
                 for seat in state.rules.seats
                 if seat != promoter
             }
@@ -142,23 +143,34 @@ def valid_actions(state: State) -> Mapping[Direction, frozenset[Action]]:
             return {}
 
 
-def _turn_actions(player: PlayerState, drawn: PlayTile | None) -> frozenset[Action]:
-    pool = _canonical((*player.hand, drawn)) if drawn is not None else player.hand
+def _turn_actions(state: State, phase: AwaitingDiscard) -> frozenset[Action]:
+    player = state.players[phase.seat]
+    pool = (
+        _canonical((*player.hand, phase.drawn))
+        if phase.drawn is not None
+        else player.hand
+    )
     counts = Counter(pool)
     acts: set[Action] = {Discard(tile) for tile in counts}
     acts |= {DeclareConcealedKong(tile) for tile, n in counts.items() if n == 4}
     acts |= {PromoteKong(tile) for tile in counts if Pung(tile) in player.melds}
 
-    # TODO: consider `min_faan`
-    if drawn is not None and has_decomposition(pool):
+    if phase.drawn is not None and _can_declare(
+        state, phase.seat, phase.drawn, FromWall(replacement=phase.replacement)
+    ):
         acts.add(DeclareWin())
     return frozenset(acts)
 
 
 def _claim_actions(
-    player: PlayerState, tile: PlayTile, *, chow_allowed: bool
+    state: State,
+    seat: Direction,
+    discarder: Direction,
+    tile: PlayTile,
+    *,
+    chow_allowed: bool,
 ) -> frozenset[Action]:
-    counts = Counter(player.hand)
+    counts = Counter(state.players[seat].hand)
     acts: set[Action] = {Pass()}
 
     if counts[tile] >= 2:
@@ -171,8 +183,7 @@ def _claim_actions(
             if all(counts[t] >= 1 for t in chow.tiles if t != tile):
                 acts.add(ClaimChow(chow.start))
 
-    # TODO: consider `min_faan`
-    if has_decomposition((*player.hand, tile)):
+    if _can_declare(state, seat, tile, FromDiscard(discarder)):
         acts.add(DeclareWin())
     return frozenset(acts)
 
@@ -183,12 +194,24 @@ def _chows_containing(tile: Suited) -> Iterator[Chow]:
             yield Chow(tile.suit, cast(ChowStart, start))
 
 
-def _rob_actions(player: PlayerState, tile: PlayTile) -> frozenset[Action]:
+def _rob_actions(
+    state: State, seat: Direction, promoter: Direction, tile: PlayTile
+) -> frozenset[Action]:
     acts: set[Action] = {Pass()}
-    # TODO: consider `min_faan`
-    if has_decomposition((*player.hand, tile)):
+    if _can_declare(state, seat, tile, FromRobbedKong(promoter)):
         acts.add(DeclareWin())
     return frozenset(acts)
+
+
+def _can_declare(
+    state: State, winner: Direction, tile: PlayTile, source: WinSource
+) -> bool:
+    """Whether `winner` may declare with `tile`: hand shape plus the table
+    minimum, judged by scoring the hypothetical win itself."""
+    hand = state.players[winner].hand
+    if len(hand) % 3 != 1 or not has_decomposition((*hand, tile)):
+        return False
+    return score(_win_state(state, winner, tile, source)).total >= state.rules.min_faan
 
 
 def step(state: State, actions: Mapping[Direction, Action]) -> State:
@@ -203,8 +226,8 @@ def step(state: State, actions: Mapping[Direction, Action]) -> State:
             raise ValueError(f"illegal action for {seat}: {action}")
 
     match state.phase:
-        case AwaitingDiscard(seat=seat, drawn=drawn):
-            return _turn(state, seat, drawn, actions[seat])
+        case AwaitingDiscard() as phase:
+            return _turn(state, phase, actions[phase.seat])
         case AwaitingClaims(discarder=discarder, tile=tile):
             return _claims(state, discarder, tile, actions)
         case AwaitingKongRob(seat=promoter, tile=tile):
@@ -213,9 +236,8 @@ def step(state: State, actions: Mapping[Direction, Action]) -> State:
             raise ValueError("cannot step a finished hand")
 
 
-def _turn(
-    state: State, seat: Direction, drawn: PlayTile | None, action: Action
-) -> State:
+def _turn(state: State, phase: AwaitingDiscard, action: Action) -> State:
+    seat, drawn = phase.seat, phase.drawn
     player = state.players[seat]
     pool = _canonical((*player.hand, drawn)) if drawn is not None else player.hand
     match action:
@@ -249,7 +271,9 @@ def _turn(
             )
         case DeclareWin():
             assert drawn is not None  # guaranteed by _turn_actions
-            return _win_state(state, seat, drawn, FromWall())
+            return _win_state(
+                state, seat, drawn, FromWall(replacement=phase.replacement)
+            )
         case _:
             raise ValueError(f"not a turn action: {action}")
 
@@ -262,12 +286,17 @@ def _claims(
 ) -> State:
     order = _claimants(state.rules.seats, discarder)
 
-    # Multiple simultaneous winners resolve as highest faan first, closest to
-    # the tile's source in turn order second. TODO: compare faan once scoring
-    # lands; until then closest-first stands alone.
+    # Highest faan wins; max() keeps the earliest (closest in turn order)
+    # seat on ties, since `order` is closest-first.
     winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
     if winners:
-        return _win_state(state, winners[0], tile, FromDiscard(discarder))
+        best = max(
+            winners,
+            key=lambda seat: (
+                score(_win_state(state, seat, tile, FromDiscard(discarder))).total
+            ),
+        )
+        return _win_state(state, best, tile, FromDiscard(discarder))
 
     for seat in order:  # at most one seat can hold enough copies
         player = state.players[seat]
@@ -343,12 +372,17 @@ def _rob(
 ) -> State:
     order = _claimants(state.rules.seats, promoter)
 
-    # Multiple simultaneous robbers resolve as highest faan first, closest to
-    # the promoter in turn order second. TODO: compare faan once scoring
-    # lands; until then closest-first stands alone.
+    # Highest faan wins; max() keeps the earliest (closest in turn order)
+    # seat on ties, since `order` is closest-first.
     winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
     if winners:
-        return _win_state(state, winners[0], tile, FromRobbedKong(promoter))
+        best = max(
+            winners,
+            key=lambda seat: (
+                score(_win_state(state, seat, tile, FromRobbedKong(promoter))).total
+            ),
+        )
+        return _win_state(state, best, tile, FromRobbedKong(promoter))
 
     player = state.players[promoter]
     return _draw_into_turn(
@@ -409,8 +443,12 @@ def _draw_into_turn(state: State, seat: Direction, *, from_back: bool) -> State:
     player = state.players[seat]
     if bonus:
         player = replace(player, bonus=_canonical((*player.bonus, *bonus)))
+    # A bonus tile mid-draw means the kept tile came from the back, even
+    # when the draw started at the front.
     phase: Phase = (
-        AwaitingDiscard(seat, tile) if tile is not None else HandOver(Goulash())
+        AwaitingDiscard(seat, tile, replacement=from_back or bool(bonus))
+        if tile is not None
+        else HandOver(Goulash())
     )
     return replace(
         state, wall=wall, players={**state.players, seat: player}, phase=phase
