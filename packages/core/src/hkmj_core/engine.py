@@ -288,18 +288,9 @@ def _claims(
     actions: Mapping[Direction, Action],
 ) -> State:
     order = _claimants(state.rules.seats, discarder)
-
-    # Highest faan wins; max() keeps the earliest (closest in turn order)
-    # seat on ties, since `order` is closest-first.
-    winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
-    if winners:
-        best = max(
-            winners,
-            key=lambda seat: (
-                count_faan(_win_state(state, seat, tile, FromDiscard(discarder))).total
-            ),
-        )
-        return _win_state(state, best, tile, FromDiscard(discarder))
+    won = _resolve_winners(state, order, actions, tile, FromDiscard(discarder))
+    if won is not None:
+        return won
 
     for seat in order:  # at most one seat can hold enough copies
         player = state.players[seat]
@@ -374,20 +365,9 @@ def _rob(
     actions: Mapping[Direction, Action],
 ) -> State:
     order = _claimants(state.rules.seats, promoter)
-
-    # Highest faan wins; max() keeps the earliest (closest in turn order)
-    # seat on ties, since `order` is closest-first.
-    winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
-    if winners:
-        best = max(
-            winners,
-            key=lambda seat: (
-                count_faan(
-                    _win_state(state, seat, tile, FromRobbedKong(promoter))
-                ).total
-            ),
-        )
-        return _win_state(state, best, tile, FromRobbedKong(promoter))
+    won = _resolve_winners(state, order, actions, tile, FromRobbedKong(promoter))
+    if won is not None:
+        return won
 
     player = state.players[promoter]
     return _draw_into_turn(
@@ -404,6 +384,29 @@ def _rob(
         promoter,
         from_back=True,
     )
+
+
+def _resolve_winners(
+    state: State,
+    order: list[Direction],
+    actions: Mapping[Direction, Action],
+    tile: PlayTile,
+    source: WinSource,
+) -> State | None:
+    """Settle any DeclareWin claims, or None when there are none.
+
+    Highest faan wins; max() keeps the earliest seat on ties, and `order`
+    is closest-first from the tile's source, so ties fall to the closest
+    seat in turn order.
+    """
+    winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
+    if not winners:
+        return None
+    best = max(
+        winners,
+        key=lambda seat: count_faan(_win_state(state, seat, tile, source)).total,
+    )
+    return _win_state(state, best, tile, source)
 
 
 def _win_state(
