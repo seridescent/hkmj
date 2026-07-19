@@ -19,16 +19,21 @@ from hkmj_core import (
     PlayTile,
     Pung,
     Rules,
+    Scoring,
     State,
     Win,
+    count_faan,
     deal,
+    full_spicy,
     full_tile_set,
     meld_sort_key,
-    count_faan,
+    settle,
     step,
     tile_sort_key,
     valid_actions,
 )
+
+SCORING = Scoring(conversion=full_spicy, payments="discarder_pays_half")
 
 RULESETS = (
     Rules(),
@@ -88,10 +93,16 @@ def assert_invariants(state: State) -> None:
         assert player.melds == tuple(sorted(player.melds, key=meld_sort_key))
         assert player.bonus == tuple(sorted(player.bonus, key=tile_sort_key))
 
-    # Any win the engine allowed must satisfy the table minimum.
+    # Any win the engine allowed must satisfy the table minimum, and every
+    # finished hand settles to zero-sum payments over exactly the seats.
     match state.phase:
-        case HandOver(outcome=Win()):
-            assert count_faan(state).total >= state.rules.min_faan
+        case HandOver(outcome=outcome):
+            deltas = settle(SCORING, state)
+            assert set(deltas) == set(state.rules.seats)
+            assert sum(deltas.values()) == 0
+            if isinstance(outcome, Win):
+                assert count_faan(state).total >= state.rules.min_faan
+                assert deltas[outcome.winner] >= 0
         case _:
             pass
 
