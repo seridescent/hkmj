@@ -40,7 +40,7 @@ from hkmj_core.actions import (
 from hkmj_core.hands import has_decomposition
 from hkmj_core.melds import Chow, ChowStart, Kong, Meld, Pung, meld_sort_key
 from hkmj_core.rules import Rules
-from hkmj_core.scoring import count_faan
+from hkmj_core.counting import count_faan
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,

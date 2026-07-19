@@ -64,7 +64,7 @@ from hkmj_core.melds import (
     meld_sort_key,
 )
 from hkmj_core.rules import Rules
-from hkmj_core.scoring import FaanCount, count_faan
+from hkmj_core.counting import FaanCount, count_faan
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
