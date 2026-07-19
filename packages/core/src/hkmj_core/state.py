@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from hkmj_core.melds import Meld
+from hkmj_core.rules import Rules
 from hkmj_core.tiles import Bonus, Direction, PlayTile, Tile
 
 
@@ -103,6 +104,9 @@ type Phase = AwaitingDiscard | AwaitingClaims | AwaitingKongRob | HandOver
 
 @dataclass(frozen=True, slots=True)
 class State:
+    rules: Rules
+    """The fixed configuration this hand was dealt under. Carried in the
+    state so a hand can never be stepped under mismatched rules."""
     wall: tuple[Tile, ...]
     """Remaining wall in draw order: regular draws consume the front,
     replacement draws (flowers, kongs) consume the back."""

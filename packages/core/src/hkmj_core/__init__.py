@@ -14,6 +14,7 @@ from hkmj_core.actions import (
     RobAction,
     TurnAction,
 )
+from hkmj_core.engine import deal, step, valid_actions
 from hkmj_core.hands import (
     ConcealedMeld,
     Decomposition,
@@ -29,6 +30,7 @@ from hkmj_core.melds import (
     Pung,
     meld_sort_key,
 )
+from hkmj_core.rules import Rules
 from hkmj_core.state import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -116,6 +118,7 @@ __all__ = [
     "PromoteKong",
     "Pung",
     "RobAction",
+    "Rules",
     "Season",
     "State",
     "Suit",
@@ -126,10 +129,13 @@ __all__ = [
     "WinSource",
     "Wind",
     "bonus_direction",
+    "deal",
     "decompositions",
     "full_tile_set",
     "has_decomposition",
     "meld_sort_key",
     "next_seat",
+    "step",
     "tile_sort_key",
+    "valid_actions",
 ]

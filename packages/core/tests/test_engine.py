@@ -1,0 +1,126 @@
+import random
+from collections import Counter
+
+import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+from hkmj_core import (
+    DIRECTIONS,
+    AwaitingClaims,
+    AwaitingDiscard,
+    AwaitingKongRob,
+    Chow,
+    Direction,
+    HandOver,
+    Kong,
+    Meld,
+    Pass,
+    PlayTile,
+    Pung,
+    Rules,
+    State,
+    Win,
+    deal,
+    full_tile_set,
+    meld_sort_key,
+    step,
+    tile_sort_key,
+    valid_actions,
+)
+
+RULESETS = (
+    Rules(),
+    # Reduced game: short trajectories, and random play actually wins
+    # sometimes, so the win paths get exercised too.
+    Rules(seats=("east", "west"), melds_to_win=2),
+    Rules(seats=("east", "south", "west"), melds_to_win=3),
+)
+
+
+def owned_tiles(meld: Meld) -> list[PlayTile]:
+    match meld:
+        case Chow():
+            return list(meld.tiles)
+        case Pung(tile=tile):
+            return [tile] * 3
+        case Kong(tile=tile):
+            return [tile] * 4
+
+
+def assert_invariants(state: State) -> None:
+    # Tile conservation: every tile of the set is somewhere, exactly once.
+    seen = Counter(state.wall)
+    for player in state.players.values():
+        seen.update(player.hand)
+        seen.update(player.discards)
+        seen.update(player.bonus)
+        for meld in player.melds:
+            seen.update(owned_tiles(meld))
+    match state.phase:
+        case AwaitingDiscard(drawn=tile) if tile is not None:
+            seen[tile] += 1
+        case AwaitingClaims(tile=tile) | AwaitingKongRob(tile=tile):
+            seen[tile] += 1
+        case _:
+            pass
+    assert seen == Counter(full_tile_set())
+
+    # Hand sizes: base holding everywhere, one extra for the acting seat's
+    # (drawn-inclusive) pool and for a winner's absorbed winning tile.
+    base = 3 * state.rules.melds_to_win + 1
+    for seat, player in state.players.items():
+        held = len(player.hand) + 3 * len(player.melds)
+        match state.phase:
+            case AwaitingDiscard(seat=actor, drawn=drawn) if actor == seat:
+                held += 1 if drawn is not None else 0
+                expected = base + 1
+            case HandOver(outcome=Win(winner=winner)) if winner == seat:
+                expected = base + 1
+            case _:
+                expected = base
+        assert held == expected, (seat, state.phase)
+
+        # Canonical form everywhere.
+        assert player.hand == tuple(sorted(player.hand, key=tile_sort_key))
+        assert player.melds == tuple(sorted(player.melds, key=meld_sort_key))
+        assert player.bonus == tuple(sorted(player.bonus, key=tile_sort_key))
+
+
+@given(
+    seed=st.integers(0, 2**32 - 1),
+    rules=st.sampled_from(RULESETS),
+    prevailing=st.sampled_from(DIRECTIONS),
+)
+@settings(max_examples=30, deadline=None)
+def test_random_playouts_terminate_with_invariants(
+    seed: int, rules: Rules, prevailing: Direction
+) -> None:
+    rng = random.Random(seed)
+    state = deal(rules, prevailing, rng)
+    assert_invariants(state)
+    for _ in range(600):
+        if isinstance(state.phase, HandOver):
+            break
+        chosen = {
+            seat: rng.choice(sorted(acts, key=repr))
+            for seat, acts in valid_actions(state).items()
+        }
+        state = step(state, chosen)
+        assert_invariants(state)
+    assert isinstance(state.phase, HandOver)
+
+
+def test_deal_is_deterministic() -> None:
+    assert deal(Rules(), "east", random.Random(7)) == deal(
+        Rules(), "east", random.Random(7)
+    )
+
+
+def test_step_validates_actions() -> None:
+    state = deal(Rules(), "east", random.Random(0))
+    assert isinstance(state.phase, AwaitingDiscard)
+    with pytest.raises(ValueError):
+        step(state, {})
+    with pytest.raises(ValueError):
+        step(state, {state.phase.seat: Pass()})
