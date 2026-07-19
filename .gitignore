@@ -12,3 +12,4 @@ wheels/
 .direnv
 .envrc
 .codex/
+.claude/
