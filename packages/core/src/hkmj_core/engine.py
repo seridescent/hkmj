@@ -53,6 +53,7 @@ from hkmj_core.state import (
     PlayerState,
     State,
     Win,
+    WinSource,
 )
 from hkmj_core.tiles import (
     Bonus,
@@ -248,12 +249,7 @@ def _turn(
             )
         case DeclareWin():
             assert drawn is not None  # guaranteed by _turn_actions
-            return _update(
-                state,
-                seat,
-                replace(player, hand=pool),
-                phase=HandOver(Win(seat, drawn, FromWall())),
-            )
+            return _win_state(state, seat, drawn, FromWall())
         case _:
             raise ValueError(f"not a turn action: {action}")
 
@@ -271,14 +267,7 @@ def _claims(
     # lands; until then closest-first stands alone.
     winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
     if winners:
-        winner = winners[0]
-        player = state.players[winner]
-        return _update(
-            state,
-            winner,
-            replace(player, hand=_add_tiles(player.hand, tile)),
-            phase=HandOver(Win(winner, tile, FromDiscard(discarder))),
-        )
+        return _win_state(state, winners[0], tile, FromDiscard(discarder))
 
     for seat in order:  # at most one seat can hold enough copies
         player = state.players[seat]
@@ -359,14 +348,7 @@ def _rob(
     # lands; until then closest-first stands alone.
     winners = [seat for seat in order if isinstance(actions[seat], DeclareWin)]
     if winners:
-        winner = winners[0]
-        player = state.players[winner]
-        return _update(
-            state,
-            winner,
-            replace(player, hand=_add_tiles(player.hand, tile)),
-            phase=HandOver(Win(winner, tile, FromRobbedKong(promoter))),
-        )
+        return _win_state(state, winners[0], tile, FromRobbedKong(promoter))
 
     player = state.players[promoter]
     return _draw_into_turn(
@@ -382,6 +364,24 @@ def _rob(
         ),
         promoter,
         from_back=True,
+    )
+
+
+def _win_state(
+    state: State, winner: Direction, tile: PlayTile, source: WinSource
+) -> State:
+    """The finished state for `winner` completing their hand with `tile`.
+
+    Single source of truth for win construction: `step` ends real hands with
+    it, and hypothetical-win consumers (the min-faan gate, faan comparison)
+    score its output, so gating and scoring can never disagree with play.
+    """
+    player = state.players[winner]
+    return _update(
+        state,
+        winner,
+        replace(player, hand=_add_tiles(player.hand, tile)),
+        phase=HandOver(Win(winner, tile, source)),
     )
 
 
