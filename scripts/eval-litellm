@@ -17,5 +17,5 @@ config="$worktree_root/config/verifiers/litellm-eval.toml"
 cd "$main_worktree_root"
 exec uv run \
     --project "$worktree_root" \
-    --package "$taskset_id" \
+    --all-packages \
     eval "$taskset_id" @ "$config" "$@"

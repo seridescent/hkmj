@@ -13,6 +13,7 @@ members = [
     "hkmj",
     "hkmj-core",
     "hkmj-honor-tiles-v1",
+    "hkmj-streaming-null-v1",
 ]
 constraints = [{ name = "verifiers", specifier = "==0.2.1" }]
 
@@ -720,6 +721,17 @@ requires-dist = [
     { name = "hkmj-core", editable = "packages/core" },
     { name = "verifiers" },
 ]
+
+[[package]]
+name = "hkmj-streaming-null-v1"
+version = "0.1.0"
+source = { editable = "packages/streaming-null-v1" }
+dependencies = [
+    { name = "verifiers" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "verifiers" }]
 
 [[package]]
 name = "httpcore"

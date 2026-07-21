@@ -77,9 +77,10 @@ use `uv pip install -e`. Run `uv lock` at the repository root after adding a
 member or dependency. Change the root constraint or source only when the shared
 workspace policy itself should change.
 
-Use `uv run --package <distribution>` for commands that need a taskset's runtime
-dependencies. If `uv` is not on `PATH`, use the repository's Nix shell or
-`nix run nixpkgs#uv -- ...`.
+Use `uv run --package <distribution>` for commands that need one package's
+runtime dependencies. Use `uv run --all-packages` when a command must load
+independent local plugins, such as a taskset and a harness. If `uv` is not on
+`PATH`, use the repository's Nix shell or `nix run nixpkgs#uv -- ...`.
 
 ## Implement the native v1 contract
 
