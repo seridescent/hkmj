@@ -1,6 +1,8 @@
 # Python-generated files
 __pycache__/
+.pytest_cache/
 *.py[oc]
+.DS_Store
 build/
 dist/
 wheels/
@@ -8,6 +10,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Verifiers evaluation artifacts
+outputs/
 
 .direnv
 .envrc
