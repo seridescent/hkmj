@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( $# == 0 )); then
+    echo "usage: scripts/eval-litellm <taskset-id> [eval options]" >&2
+    exit 2
+fi
+
+taskset_id=$1
+shift
+
+worktree_root=$(git rev-parse --show-toplevel)
+common_git_dir=$(git rev-parse --path-format=absolute --git-common-dir)
+main_worktree_root=$(dirname "$common_git_dir")
+config="$worktree_root/config/verifiers/litellm-eval.toml"
+
+cd "$main_worktree_root"
+exec uv run \
+    --project "$worktree_root" \
+    --package "$taskset_id" \
+    eval "$taskset_id" @ "$config" "$@"
