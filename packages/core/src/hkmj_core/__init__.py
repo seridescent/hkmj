@@ -19,6 +19,7 @@ from hkmj_core.counting import (
     LimitCount,
     OrdinaryCount,
     count_faan,
+    is_thirteen_orphans,
 )
 from hkmj_core.engine import deal, step, valid_actions
 from hkmj_core.faan import (
@@ -68,7 +69,6 @@ from hkmj_core.hands import (
     Decomposition,
     decompositions,
     has_decomposition,
-    is_thirteen_orphans,
 )
 from hkmj_core.melds import (
     CHOW_STARTS,

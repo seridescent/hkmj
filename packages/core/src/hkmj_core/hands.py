@@ -5,9 +5,6 @@ pair of eyes. Declared melds are fixed and public, so the win check for a
 full hand reduces to: does any decomposition of the concealed tiles exist?
 The target meld count k (4 in standard play) never appears here — hand sizes
 enforce it upstream.
-
-Thirteen orphans, the one limit hand that is not melds-plus-eyes shaped,
-gets its own predicate here.
 """
 
 from collections import Counter
@@ -66,13 +63,6 @@ ORPHAN_KINDS: frozenset[PlayTile] = frozenset(
     | {Dragon(color) for color in DRAGON_COLORS}
 )
 """The thirteen terminal and honor kinds."""
-
-
-def is_thirteen_orphans(tiles: Iterable[PlayTile]) -> bool:
-    """Whether the concealed tiles are the thirteen-orphans limit hand:
-    every terminal and honor kind, exactly one of them duplicated."""
-    pool = list(tiles)
-    return len(pool) == 14 and set(pool) == ORPHAN_KINDS
 
 
 def has_decomposition(tiles: Iterable[PlayTile]) -> bool:

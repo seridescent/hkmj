@@ -37,8 +37,8 @@ from hkmj_core.actions import (
     Pass,
     PromoteKong,
 )
-from hkmj_core.counting import count_faan
-from hkmj_core.hands import has_decomposition, is_thirteen_orphans
+from hkmj_core.counting import count_faan, is_thirteen_orphans
+from hkmj_core.hands import has_decomposition
 from hkmj_core.melds import Chow, ChowStart, Kong, Meld, Pung, meld_sort_key
 from hkmj_core.rules import Rules
 from hkmj_core.state import (

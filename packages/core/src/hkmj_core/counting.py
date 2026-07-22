@@ -22,7 +22,7 @@ scoring layer on top of `FaanCount`.
 """
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
 from hkmj_core.faan import (
@@ -63,7 +63,7 @@ from hkmj_core.faan import (
     WinByLastCatch,
     WinConditionPattern,
 )
-from hkmj_core.hands import Decomposition, decompositions, is_thirteen_orphans
+from hkmj_core.hands import ORPHAN_KINDS, Decomposition, decompositions
 from hkmj_core.melds import Chow, Kong, Meld, Pung
 from hkmj_core.state import (
     FromDiscard,
@@ -104,6 +104,13 @@ class LimitCount:
 
 
 type FaanCount = OrdinaryCount | LimitCount
+
+
+def is_thirteen_orphans(tiles: Iterable[PlayTile]) -> bool:
+    """Whether the concealed tiles are the thirteen-orphans limit hand:
+    every terminal and honor kind, exactly one of them duplicated."""
+    pool = list(tiles)
+    return len(pool) == 14 and set(pool) == ORPHAN_KINDS
 
 
 def count_faan(state: State) -> FaanCount:
