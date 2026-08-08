@@ -25,9 +25,10 @@ class StreamingNullHarness(vf.Harness[StreamingNullHarnessConfig]):
         endpoint: str,
         secret: str,
         mcp_urls: dict[str, str],
+        data: vf.TaskData,
     ) -> vf.ProgramResult:
         del mcp_urls
-        system_prompt, prompt = self.resolve_prompt(trace.task.data)
+        system_prompt, prompt = self.resolve_prompt(data)
         args = [
             f"--base-url={endpoint}",
             f"--api-key={secret}",

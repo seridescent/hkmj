@@ -15,7 +15,7 @@ members = [
     "hkmj-honor-tiles-v1",
     "hkmj-streaming-null-v1",
 ]
-constraints = [{ name = "verifiers", specifier = "==0.2.1" }]
+constraints = [{ name = "verifiers", specifier = "==0.3.0" }]
 
 [[package]]
 name = "aiofiles"
@@ -1500,7 +1500,7 @@ toml = [
 
 [[package]]
 name = "prime-sandboxes"
-version = "0.2.32"
+version = "0.2.35"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1510,9 +1510,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/fd/f57ad87b273ae1696ca620deaac2c56e28a54905d2d2791a5b9a387f443c/prime_sandboxes-0.2.32.tar.gz", hash = "sha256:ea3d6230cdfb5af2e4542814996257bad60fc9913f15f776a65ca1ef05f4f504", size = 77656, upload-time = "2026-07-17T17:41:02.296Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/cc/287c0db192ddbe003bd5882d1aab5461cdb3912d0c92db7b39734a9e828e/prime_sandboxes-0.2.35.tar.gz", hash = "sha256:e716bfccdcb51aefd5e2d48fdfc3a79bea8c6825bce1871f49f095ced03efc94", size = 86226, upload-time = "2026-08-05T14:29:53.33Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/a3/c345509abf8f7707c0c3e9d6badba2e057781d1c05a88a46733ab67521e5/prime_sandboxes-0.2.32-py3-none-any.whl", hash = "sha256:4fe730622e51c489f8f86e7ad959fd8320db6d7a9fe22442ae3c680687da4c22", size = 40897, upload-time = "2026-07-17T17:41:00.935Z" },
+    { url = "https://files.pythonhosted.org/packages/25/07/c186395925f780b1a18b350f562ebc4e8a64a182c37bd1e3db3948f297e2/prime_sandboxes-0.2.35-py3-none-any.whl", hash = "sha256:29d7057532b21545be5938d3aee822ae3a54085a45934d5c3ac55190e06c5bbb", size = 47189, upload-time = "2026-08-05T14:29:52.142Z" },
 ]
 
 [[package]]
@@ -2114,7 +2114,7 @@ wheels = [
 
 [[package]]
 name = "renderers"
-version = "0.1.8"
+version = "0.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -2125,9 +2125,9 @@ dependencies = [
     { name = "tiktoken" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/82/e493c5f6752283b18f43b8bb3e6f3b2068310a0a42b0650de1b841713fa3/renderers-0.1.8.tar.gz", hash = "sha256:7a50b59cc64593da504c054bf3e2f0f147af5c1770bad7107de7b18887377280", size = 343291, upload-time = "2026-07-15T14:10:22.918Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/e4/62fd26ceeb0cdd5b1d11d56a9413014f858670902dfb3d976e9860d04c96/renderers-0.1.9.tar.gz", hash = "sha256:f8516f632b1e0a1bf49d6306606c4ed8815a70671c7409ea804e79203c149999", size = 349102, upload-time = "2026-08-07T00:12:01.042Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/2b/6defb0cc5ca19d66798a6c656d30aab86d7c9d4cec14c2b24248b5421c86/renderers-0.1.8-py3-none-any.whl", hash = "sha256:40e6b2c766e23feb12f73b1fbdfef4dea51921479454756ac796612e3bef8397", size = 189915, upload-time = "2026-07-15T14:10:21.371Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/19/7d09de9b5b37080f31618d0ebfc14c88f08911a804dae28491021e4c2d21/renderers-0.1.9-py3-none-any.whl", hash = "sha256:e31293c60afd3c632c09e41509f3e6403afecd107caa956a26a7dc9d49554335", size = 192920, upload-time = "2026-08-07T00:11:59.609Z" },
 ]
 
 [[package]]
@@ -2729,7 +2729,7 @@ wheels = [
 
 [[package]]
 name = "verifiers"
-version = "0.2.1"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2759,9 +2759,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/50/66d6571470240006caec392361d9f20e863acf39361bda325e53e235dbed/verifiers-0.2.1.tar.gz", hash = "sha256:e68c2b22a7fdbc2590a7cb8f59db685295be7999b9a75b12fffc00b2ac7c5aa1", size = 739478, upload-time = "2026-07-20T20:15:52.117Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/f8/931fb47ced84527a0f2b79f4cac8e6642dd88272fa232103db1e663c0f5a/verifiers-0.3.0.tar.gz", hash = "sha256:5070817dabfa099e7426095f8b730cfd065e8e1a32a50c538821932571bc5f9d", size = 821665, upload-time = "2026-08-07T17:08:06.877Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/ce/1d17f06a311fb904a4032f417dc00ee0b855baa773efdfb694cfba3b7792/verifiers-0.2.1-py3-none-any.whl", hash = "sha256:6b31b20a0d2b42ec7dbcd6824124d085535aaaed2be36fe6b4fdf59ebf65a42f", size = 759473, upload-time = "2026-07-20T20:15:50.364Z" },
+    { url = "https://files.pythonhosted.org/packages/49/24/698b412510011504d74f98217054d3b59a71998e609f0c3db9df16969532/verifiers-0.3.0-py3-none-any.whl", hash = "sha256:b4c734c962a48afc1f9e836f20c04b1790b168ec8d47dbbefe45d175ecc58569", size = 861293, upload-time = "2026-08-07T17:08:05.094Z" },
 ]
 
 [[package]]

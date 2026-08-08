@@ -2,7 +2,7 @@ model = "gpt-5.6-luna"
 max_concurrent = 1
 push = false
 
-[harness]
+[env.agent.harness]
 id = "hkmj-streaming-null-v1"
 
 [client]
