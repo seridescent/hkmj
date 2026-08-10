@@ -16,10 +16,10 @@ Read only the sections needed when a taskset requires more than the ordinary
 
 ## Reuse built-ins first
 
-Inspect `verifiers.v1.tasksets`, built-in harnesses, and bundled environments
-before adding abstractions. In particular, consider `HarborTaskset` for Harbor
-tasks and the bundled `best-of-n` or `agentic-judge` environments for common
-multi-agent control flow.
+Inspect `verifiers.v1.tasksets`, built-in harnesses, and bundled envs before
+adding abstractions. In particular, consider `HarborTaskset` for Harbor tasks
+and the bundled `best-of-n`, `agentic-judge`, or `user-sim` envs for common
+control flow.
 
 Prefer harness-provided bash, search, or other tools over custom MCP servers.
 Choose a custom harness only when a built-in cannot express the required agent
@@ -38,8 +38,8 @@ a model. Keep rollout work in this order:
 Raise ordinary Python exceptions from hooks and scoring; the rollout records
 them as `TaskError`. Metrics aid observation but do not contribute to reward.
 
-Put judgment comparing sibling traces from one environment rollout on
-`Environment.finalize(task, episode)`. Record values with
+Put judgment comparing sibling traces from one env rollout on
+`Env.finalize(task, episode)`. Record values with
 `trace.record_reward` and `trace.record_metric` in program order. Do not expect a
 live runtime there.
 
@@ -63,17 +63,19 @@ class SearchTaskConfig(vf.TaskConfig):
 
 
 class SearchTask(vf.Task[vf.TaskData, vf.State, SearchTaskConfig]):
-    tools = (SearchToolset,)
+    @classmethod
+    def toolsets(cls, config: SearchTaskConfig) -> list[vf.Toolset]:
+        return [SearchToolset(config.tools)]
 ```
 
 Choose scope from lifetime and filesystem needs:
 
-- Declare task-scoped tools on `Task.tools`; Verifiers launches one server per
-  rollout.
+- Construct task-scoped tools in the `Task.toolsets` classmethod; Verifiers
+  launches one server per rollout.
 - Set `colocated = true` when the tool must share the harness filesystem or
   processes.
-- Use `vf.SharedToolsetConfig` and `Taskset.tools` for a server shared by one
-  worker's rollouts.
+- Use `vf.SharedToolsetConfig` and the `Taskset.toolsets` classmethod for a server
+  shared by one environment worker's rollouts.
 - Set a toolset config `url` to connect to an existing streamable-HTTP MCP
   service.
 
@@ -83,24 +85,36 @@ remote URL.
 
 ## User simulation
 
-Use `vf.User` when the taskset, rather than the harness, drives a simulated
-conversation. Verify that the selected harness advertises `SUPPORTS_USER_SIM`;
-many CLI harnesses do not, while the built-in bash harness does.
+There is no user server or `vf.User`. Drive every scripted, game-engine, or
+modeled user through an interaction loop in `Env.run()`:
+
+- Open `agents.<name>.interaction(task)` as an async context manager.
+- For a prompted task, call bare `turn()` to receive the agent's opening reply;
+  for a prompt-less task, open with `turn(message)`.
+- Continue by passing each user reply to `turn(message)`. The harness must
+  support resume, either through `SUPPORTS_RESUME` or its own `resume()`.
+- For a modeled user, drive a second agent interaction or use the bundled
+  `user-sim` env.
+
+If a prompt describes a hidden user scenario rather than an assistant-facing
+opening message, give the assistant interaction a task copy with `prompt=None`
+and keep the scenario in another `TaskData` field for scoring and user control.
 
 ## Multi-agent environments
 
-Export an `Environment` subclass when one rollout contains more than one agent
+Export a `vf.Env` subclass when one rollout contains more than one agent
 run and a bundled environment does not cover the control flow.
 
-Declare each agent as an `vf.AgentConfig` field on a typed `vf.EnvConfig` bound
-through `Environment[YourConfig]`. The field name is the agent name. Put
-per-agent turn, token, timeout, and retry limits on that field.
+Declare each agent as a `vf.AgentConfig` field with a default instance on a typed
+`vf.EnvConfig` bound through `vf.Env[YourConfig]`. The field name is the agent
+name. Put per-agent turn, token, timeout, and retry limits on that field.
 
-Implement imperative `run(task, agents)` control flow. Every completed run joins
-the episode automatically. Use `setup(agents)` for fixed standing such as a
-non-trainable judge, and use `finalize(task, episode)` for sibling-dependent
-judgment. Inspect the bundled environments and the upstream `code_golf_v1`
-reference before inventing a new pattern.
+Implement imperative `run(task, agents)` control flow and return nothing. Every
+completed run joins the episode automatically. Use `setup(agents)` for fixed
+standing such as a non-trainable judge, and use `finalize(task, episode)` for
+sibling-dependent judgment; `trace.agent.name` identifies the role. Inspect the
+bundled envs and upstream `code_golf_v1` reference before inventing a new
+pattern.
 
 ## Custom harnesses
 
@@ -109,12 +123,16 @@ Make every model request through the supplied interception `endpoint` and
 accurately:
 
 - `SUPPORTS_MCP`
-- `SUPPORTS_USER_SIM`
-- `SUPPORTS_MESSAGE_PROMPT`
+- `SUPPORTS_RESUME`
 - `APPENDS_SYSTEM_PROMPT`
+- `EXECUTES_CODE`, `NEEDS_CONTAINER`, and `SUPPORTS_SKILLS` when their defaults
+  do not describe the program
 
 Return the `vf.ProgramResult` from `runtime.run_program()` or
 `runtime.run_uv_script()`. Do not construct trace nodes by hand.
+
+If the harness creates per-rollout state outside the runtime's disposable
+workspace, remove it in an idempotent `cleanup(trace, runtime)` override.
 
 ## Migration from v0
 
@@ -126,8 +144,8 @@ Map concepts directly before changing behavior:
 | `load_environment(**kwargs)` | Exported `vf.Taskset` class and typed config |
 | `Rubric` reward function | Task `@vf.reward` method |
 | Parser object | Ordinary parsing inside task scoring |
-| `ToolEnv` tools | `vf.Toolset` on `Task.tools` or `Taskset.tools` |
-| `MultiTurnEnv.env_response` | `vf.User` on the task |
+| `ToolEnv` tools | `vf.Toolset` constructed by `Task.toolsets` or `Taskset.toolsets` |
+| `MultiTurnEnv.env_response` | Interaction loop in `Env.run()` |
 | Dict state | Typed `vf.State` |
 | Sandbox subclass | Runtime config and task hooks |
 
@@ -136,11 +154,13 @@ v1 traces where practical.
 
 ## Images and publishing
 
-When a task needs a custom image, use the user-approved image workflow and keep
-image names scoped to the environment and task. Do not build or publish an image
-merely because the taskset mentions one.
+When a task needs a custom container image, use `prime images push`; it builds in
+the cloud and does not require local Docker. Name it
+`<env>.x86.<task>:latest`. Do not build or publish an image merely because the
+taskset mentions one.
 
 After installability, validation, and representative behavior are stable, ask
 the user whether Hub visibility should be `PUBLIC` or `PRIVATE`. Publishing is
-an external state change. Run `prime env push` only after the user requests it
-and supplies the visibility.
+an external state change. Run
+`prime env push <taskset-id> --visibility <visibility>` only after the user
+requests it and supplies the visibility.

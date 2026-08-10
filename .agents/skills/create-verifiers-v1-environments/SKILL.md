@@ -1,6 +1,6 @@
 ---
 name: create-verifiers-v1-environments
-description: Create or migrate native verifiers.v1 taskset, environment, and harness packages in the hkmj uv workspace. Use when adding a Hong Kong mahjong evaluation taskset under packages/, exposing core game data to models, adding tools or user simulation, building multi-agent control flow or a harness, running local Verifiers evaluations, or migrating a v0 environment to typed v1 traces.
+description: Create or migrate native verifiers.v1 taskset, Env, toolset, and harness packages in the hkmj uv workspace. Use when adding a Hong Kong mahjong evaluation taskset under packages/, exposing core game data to models, adding tools or user-driven interaction, building multi-agent control flow or a harness, running local Verifiers evaluations, or migrating a v0 environment to typed v1 traces.
 ---
 
 # Create hkmj Verifiers environments
@@ -14,7 +14,7 @@ Define the dataset fields, prompts, reference answers, scoring, and configurable
 values before writing code. Prefer deterministic scoring. Use an LLM judge only
 when semantic judgment is unavoidable.
 
-Start with a taskset alone. Add a tool, user simulator, `Environment`, or custom
+Start with a taskset alone. Add a toolset, interaction loop, `Env`, or custom
 harness only when the rollout cannot use a built-in harness and ordinary task
 hooks. Read [references/advanced-v1.md](references/advanced-v1.md) before adding
 any of those components, migrating v0 code, using custom images, or publishing.
@@ -90,8 +90,8 @@ Use only `verifiers.v1` objects:
 import verifiers.v1 as vf
 ```
 
-Export one `vf.Taskset` subclass through `__all__`. Optionally export an
-`Environment` or `Harness` subclass when the contract needs one. Do not add
+Export one `vf.Taskset` subclass through `__all__`. Optionally export a `vf.Env`
+or `vf.Harness` subclass when the contract needs one. Do not add
 `load_environment`, `load_taskset`, or `load_harness` functions, and do not mix
 v0 `Environment`, `Rubric`, `Parser`, or `*Env` objects into the package.
 
@@ -124,7 +124,8 @@ Apply these ownership rules:
 
 - Put immutable, serializable row values on `TaskData`.
 - Put hooks, stop conditions, rewards, metrics, and task-facing config on `Task`.
-- Put dataset loading, split, seed, and selection-time concerns on `Taskset`.
+- Put dataset loading, split, seed, selection-time concerns, and shared
+  task-agnostic toolsets on `Taskset`.
 - Use typed `vf.State` for live counters or coordination.
 - Put inspectable JSON-serializable artifacts in `trace.info`.
 - Use the provided `vf.Runtime` in hooks instead of assuming a runtime backend.
