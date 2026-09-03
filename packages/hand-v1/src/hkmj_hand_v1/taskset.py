@@ -18,7 +18,6 @@ from hkmj_core import (
     HandOver,
     HandTrace,
     Outcome,
-    Pass,
     Rules,
     Scoring,
     State,
@@ -35,12 +34,11 @@ from hkmj_core import (
 from hkmj_hand_v1.presentation import (
     HandPrompt,
     action_label,
-    legal_action_map,
+    actions_by_label,
     parse_action,
     render_invalid_prompt,
     render_system_prompt,
     render_turn_prompt,
-    render_update,
 )
 
 HAND_TRACE_ADAPTER = TypeAdapter(HandTrace)
@@ -88,11 +86,6 @@ class HandEnvConfig(vf.EnvConfig):
     invalid_retries: int = Field(1, ge=0)
 
 
-def _fallback(actions: frozenset[Action]) -> Action:
-    passed = next((action for action in actions if isinstance(action, Pass)), None)
-    return passed or min(actions, key=lambda action: (action.kind, repr(action)))
-
-
 class HandEnv(vf.Env[HandEnvConfig]):
     """Open one real interaction per seat and referee a complete native hand."""
 
@@ -106,8 +99,12 @@ class HandEnv(vf.Env[HandEnvConfig]):
                 data.model_copy(
                     update={
                         "prompt": None,
-                        "system_prompt": data.system_prompt
-                        or render_system_prompt(seat, data.prompt_contract),
+                        "system_prompt": render_system_prompt(
+                            player_view(data.initial_state, seat),
+                            data.scoring,
+                            data.prompt_contract,
+                            data.system_prompt,
+                        ),
                     }
                 ),
                 hand_task.config,
@@ -117,11 +114,11 @@ class HandEnv(vf.Env[HandEnvConfig]):
 
         state = data.initial_state
         action_batches: list[dict[Direction, Action]] = []
+        # Append-only public log with one resolved result for each completed step.
         updates: list[str] = []
+        # Per-seat cursor into `updates`, so each prompt gets only unseen results.
         seen = {seat: 0 for seat in DIRECTIONS}
-        invalid = {seat: 0 for seat in DIRECTIONS}
-        fallbacks = {seat: 0 for seat in DIRECTIONS}
-        unavailable: set[Direction] = set()
+        invalid_actions = {seat: 0 for seat in DIRECTIONS}
 
         async with (
             agents.east.interaction(seat_tasks["east"]) as east,
@@ -136,16 +133,16 @@ class HandEnv(vf.Env[HandEnvConfig]):
                 "north": north,
             }
 
-            async def choose(seat: Direction, actions: frozenset[Action]) -> Action:
-                if seat in unavailable:
-                    fallbacks[seat] += 1
-                    return _fallback(actions)
-
+            async def choose_action(
+                seat: Direction, legal_actions: frozenset[Action]
+            ) -> Action:
                 view = player_view(state, seat)
-                legal = legal_action_map(actions, view, data.prompt_contract)
+                labeled_actions = actions_by_label(
+                    legal_actions, view, data.prompt_contract
+                )
                 prompt = render_turn_prompt(
                     view,
-                    legal,
+                    labeled_actions,
                     updates[seen[seat] :],
                     data.prompt_contract,
                 )
@@ -153,51 +150,68 @@ class HandEnv(vf.Env[HandEnvConfig]):
                 for _ in range(self.config.invalid_retries + 1):
                     segment = await interactions[seat].turn(prompt)
                     if segment.terminated:
-                        unavailable.add(seat)
-                        invalid[seat] += 1
-                        break
-                    action = parse_action(segment.last_reply, legal)
+                        trace = interactions[seat].trace
+                        reason = trace.stop_condition or "no stop condition recorded"
+                        if trace.last_error is not None:
+                            reason += f": {trace.last_error.message}"
+                        raise RuntimeError(
+                            f"{seat} interaction terminated before choosing an action "
+                            f"({reason})"
+                        )
+                    action = parse_action(segment.last_reply, labeled_actions)
                     if action is not None:
                         return action
-                    invalid[seat] += 1
-                    prompt = render_invalid_prompt(legal, data.prompt_contract)
+                    invalid_actions[seat] += 1
+                    prompt = render_invalid_prompt(
+                        labeled_actions, data.prompt_contract
+                    )
 
-                fallbacks[seat] += 1
-                return _fallback(actions)
+                raise ValueError(
+                    f"{seat} failed to choose a legal bracketed action; "
+                    f"invalid reply limit: {self.config.invalid_retries + 1}"
+                )
 
             while not isinstance(state.phase, HandOver):
-                available = valid_actions(state)
-                seats = tuple(available)
-                chosen = await asyncio.gather(
-                    *(choose(seat, available[seat]) for seat in seats)
-                )
-                actions = dict(zip(seats, chosen, strict=True))
-                for seat, action in actions.items():
-                    label = action_label(
-                        action,
-                        player_view(state, seat),
-                        data.prompt_contract,
-                    )
-                    updates.append(render_update(seat, label, data.prompt_contract))
+                legal_actions_by_seat = valid_actions(state)
+                seats = tuple(legal_actions_by_seat)
+                try:
+                    async with asyncio.TaskGroup() as group:
+                        action_tasks = {
+                            seat: group.create_task(
+                                choose_action(seat, legal_actions_by_seat[seat])
+                            )
+                            for seat in seats
+                        }
+                except* (RuntimeError, ValueError) as errors:
+                    raise errors.exceptions[0] from None
+                actions = {seat: action_tasks[seat].result() for seat in seats}
+                next_state, resolved = step(state, actions)
                 action_batches.append(actions)
-                state, _ = step(state, actions)
+                if resolved is None:
+                    updates.append(data.prompt_contract.all_passed_update_template)
+                else:
+                    seat, action = resolved
+                    updates.append(
+                        data.prompt_contract.update_template.format(
+                            seat=seat,
+                            action=action_label(
+                                action,
+                                player_view(state, seat),
+                                data.prompt_contract,
+                            ),
+                        )
+                    )
+                state = next_state
 
         hand_trace = HandTrace(data.initial_state, tuple(action_batches))
-        if hand_trace.replay() != state:
+        if hand_trace.play_to_end() != state:
             raise RuntimeError("recorded hand trace does not reproduce the final state")
 
         phase = state.phase
         assert isinstance(phase, HandOver)
         outcome = phase.outcome
         faan_count = count_faan(state) if isinstance(outcome, Win) else None
-        winner = outcome.winner if isinstance(outcome, Win) else None
         deltas = settle(data.scoring, state)
-        traces: dict[Direction, vf.Trace] = {
-            "east": east.trace,
-            "south": south.trace,
-            "west": west.trace,
-            "north": north.trace,
-        }
         common_info = {
             "seed": data.seed,
             "hand_trace": HAND_TRACE_ADAPTER.dump_python(hand_trace, mode="json"),
@@ -210,19 +224,23 @@ class HandEnv(vf.Env[HandEnvConfig]):
             ),
             "points": dict(deltas),
             "steps": len(action_batches),
-            "invalid_actions": invalid,
-            "fallbacks": fallbacks,
+            "invalid_actions": invalid_actions,
         }
-        for seat, trace in traces.items():
+        for seat, trace in zip(
+            DIRECTIONS,
+            (east.trace, south.trace, west.trace, north.trace),
+            strict=True,
+        ):
             trace.record_reward("payoff", float(deltas[seat]))
             trace.record_metric("raw_points", float(deltas[seat]))
-            trace.record_metric("win", float(winner == seat))
+            trace.record_metric(
+                "win", float(isinstance(outcome, Win) and outcome.winner == seat)
+            )
             trace.record_metric("goulash", float(isinstance(outcome, Goulash)))
             trace.record_metric(
                 "winner_faan", float(faan_count.total if faan_count is not None else 0)
             )
-            trace.record_metric("invalid_actions", float(invalid[seat]))
-            trace.record_metric("fallbacks", float(fallbacks[seat]))
+            trace.record_metric("invalid_actions", float(invalid_actions[seat]))
             trace.info["hkmj"] = {"seat": seat, **common_info}
 
 

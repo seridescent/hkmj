@@ -11,19 +11,22 @@ hand with `hkmj-core`. On a normal turn it samples the acting seat. During a
 claim or kong-rob window it asks every eligible seat, with concurrency bounded
 by Verifiers' `env.max_concurrent_agents` setting. A model may reason in prose,
 but it must put exactly one legal action in square brackets, such as
-`[discard 9 myriad]` or `[pung]`.
+`[discard 9 myriad]` or `[pung]`. The rollout fails if an interaction terminates
+or exhausts its allowed invalid replies.
 
 Prompts are task data. `HandPrompt` carries the rules text, state, update,
 system, turn, and invalid-action templates, bracket instructions, and tile
-rendering. Every saved trace therefore records the prompt contract that
+rendering. Fixed hand context goes in the seat's system prompt; turn prompts
+contain the changing player view and resolved public updates not yet shown to
+that seat. Every saved trace therefore records the prompt contract that
 produced it. The rendering and parsing code is ordinary Python and can be
 varied without changing the game engine.
 
 Each episode contains four seat-stamped traces. The environment records a
 zero-sum `payoff` reward, raw point and outcome metrics, and common replay facts
 under `trace.info["hkmj"]`. The serialized native `HandTrace` is an initial
-`State` plus one native action map per call to `step`; replay reconstructs the
-final core state.
+`State` plus one native action map per call to `step`; `play_to_end()`
+reconstructs the final core state.
 
 Inspect one resolved task without contacting a model:
 

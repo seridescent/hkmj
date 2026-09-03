@@ -30,6 +30,7 @@ from hkmj_core import (
     PlayerView,
     PromoteKong,
     Pung,
+    Scoring,
     Season,
     Suited,
     Tile,
@@ -44,20 +45,27 @@ class HandPrompt(BaseModel):
 
     tile_rendering: Literal["english", "compact"] = "english"
     rules_text: str = (
-        "A legal winning hand normally has four melds and one pair and must meet "
-        "the table's minimum faan. On your turn, discard one tile unless you "
-        "declare a legal win or kong. After a discard, eligible players may pass, "
-        "win, pung, kong, or (only when next in turn order) chow. The referee "
-        "resolves competing claims. Flowers and seasons are set aside and replaced "
-        "automatically. The hand ends on a legal win or when the wall is exhausted."
+        "A legal winning hand has the configured number of melds and one pair and "
+        "must meet the configured minimum faan. On your turn, discard one tile "
+        "unless you declare a legal win or kong. After a discard, eligible players "
+        "may pass, win, pung, kong, or (only when next in turn order) chow. The "
+        "referee resolves competing claims. Flowers and seasons are set aside and "
+        "replaced automatically. The hand ends on a legal win or when the wall is "
+        "exhausted."
     )
     bracketed_action_instructions: str = (
         "You may explain your reasoning, but include exactly one legal action in "
         "square brackets. Only the bracketed legal action counts."
     )
-    system_template: str = (
-        "You are playing Old Hong Kong mahjong as {seat}.\n\n"
-        "Rules:\n{rules_text}\n\n{action_instructions}"
+    system_template: str = "{hand_context}\n\n{instructions}"
+    default_instructions_template: str = "Rules:\n{rules_text}\n\n{action_instructions}"
+    hand_context_template: str = (
+        "You are playing Old Hong Kong mahjong as {seat}{dealer_suffix}.\n"
+        "Prevailing wind: {prevailing}.\n"
+        "A win requires {melds_to_win} melds plus a pair and at least {min_faan} "
+        "faan; faan is capped at {faan_cap}.\n"
+        "Points by faan: {points}. Payment rule: {payments}.\n"
+        "Tile notation: {tile_notation}."
     )
     state_template: str = "Current state:\n{state}"
     turn_template: str = (
@@ -65,6 +73,7 @@ class HandPrompt(BaseModel):
         "{state}\n\nLegal actions: {legal_actions}"
     )
     update_template: str = "- {seat} chose [{action}]."
+    all_passed_update_template: str = "- All eligible seats chose [pass]."
     no_updates_text: str = "- None yet."
     invalid_action_template: str = (
         "That did not contain exactly one legal bracketed action. Reply again "
@@ -131,8 +140,6 @@ def _opponent_line(seat: Direction, opponent: OpponentView, prompt: HandPrompt) 
 
 def render_view(view: PlayerView, prompt: HandPrompt) -> str:
     lines = [
-        f"You are {view.seat}{' (dealer)' if view.seat == view.rules.seats[0] else ''}.",
-        f"Prevailing wind: {view.prevailing}.",
         f"Tiles left in wall: {view.wall_count}.",
         f"Your concealed hand: {_tiles(view.me.hand, prompt)}.",
         f"Your melds: {_melds(view.me.melds, prompt)}.",
@@ -194,7 +201,7 @@ def action_label(action: Action, view: PlayerView, prompt: HandPrompt) -> str:
             return "chow " + " ".join(tile_label(tile, prompt) for tile in chow.tiles)
 
 
-def legal_action_map(
+def actions_by_label(
     actions: Iterable[Action], view: PlayerView, prompt: HandPrompt
 ) -> dict[str, Action]:
     return {
@@ -203,43 +210,67 @@ def legal_action_map(
     }
 
 
-def parse_action(reply: str, legal: dict[str, Action]) -> Action | None:
+def parse_action(reply: str, actions_by_label: dict[str, Action]) -> Action | None:
     """Return the sole legal bracketed action, or reject an ambiguous reply."""
     bracketed = [
         " ".join(value.split()).casefold()
         for value in re.findall(r"\[([^\[\]]+)\]", reply)
     ]
-    found = [legal[value] for value in bracketed if value in legal]
+    found = [
+        actions_by_label[value] for value in bracketed if value in actions_by_label
+    ]
     return found[0] if len(found) == 1 else None
 
 
-def render_system_prompt(seat: Direction, prompt: HandPrompt) -> str:
+def render_system_prompt(
+    view: PlayerView,
+    scoring: Scoring,
+    prompt: HandPrompt,
+    instructions_override: str | None = None,
+) -> str:
+    tile_notation = (
+        "D=dot, B=bamboo, C=myriad, E/S/W/N=winds, RD/GD/WD=dragons, F=flower, S=season"
+        if prompt.tile_rendering == "compact"
+        else "English tile names"
+    )
     return prompt.system_template.format(
-        seat=seat,
-        rules_text=prompt.rules_text,
-        action_instructions=prompt.bracketed_action_instructions,
+        hand_context=prompt.hand_context_template.format(
+            seat=view.seat,
+            dealer_suffix=" (dealer)" if view.seat == view.rules.seats[0] else "",
+            prevailing=view.prevailing,
+            melds_to_win=view.rules.melds_to_win,
+            min_faan=view.rules.min_faan,
+            faan_cap=view.rules.faan_cap,
+            points=", ".join(
+                f"{faan}={points}" for faan, points in sorted(scoring.points.items())
+            ),
+            payments=scoring.payments.replace("_", " "),
+            tile_notation=tile_notation,
+        ),
+        instructions=instructions_override
+        or prompt.default_instructions_template.format(
+            rules_text=prompt.rules_text,
+            action_instructions=prompt.bracketed_action_instructions,
+        ),
     )
 
 
 def render_turn_prompt(
     view: PlayerView,
-    legal: dict[str, Action],
+    actions_by_label: dict[str, Action],
     updates: Sequence[str],
     prompt: HandPrompt,
 ) -> str:
-    actions = " or ".join(f"[{label}]" for label in legal)
-    state = prompt.state_template.format(state=render_view(view, prompt))
     return prompt.turn_template.format(
         updates="\n".join(updates) or prompt.no_updates_text,
-        state=state,
-        legal_actions=actions,
+        state=prompt.state_template.format(state=render_view(view, prompt)),
+        legal_actions=" or ".join(f"[{label}]" for label in actions_by_label),
     )
 
 
-def render_invalid_prompt(legal: dict[str, Action], prompt: HandPrompt) -> str:
-    actions = " or ".join(f"[{label}]" for label in legal)
-    return prompt.invalid_action_template.format(legal_actions=actions)
-
-
-def render_update(seat: Direction, action: str, prompt: HandPrompt) -> str:
-    return prompt.update_template.format(seat=seat, action=action)
+def render_invalid_prompt(
+    actions_by_label: dict[str, Action], prompt: HandPrompt
+) -> str:
+    return prompt.invalid_action_template.format(
+        legal_actions=" or ".join(f"[{label}]" for label in actions_by_label)
+    )
