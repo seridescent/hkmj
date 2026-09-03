@@ -93,6 +93,7 @@ modeled user through an interaction loop in `Env.run()`:
   for a prompt-less task, open with `turn(message)`.
 - Continue by passing each user reply to `turn(message)`. The harness must
   support resume, either through `SUPPORTS_RESUME` or its own `resume()`.
+  The built-in `null` and `bash` harnesses support transcript-backed resume.
 - For a modeled user, drive a second agent interaction or use the bundled
   `user-sim` env.
 
@@ -115,6 +116,15 @@ standing such as a non-trainable judge, and use `finalize(task, episode)` for
 sibling-dependent judgment; `trace.agent.name` identifies the role. Inspect the
 bundled envs and upstream `code_golf_v1` reference before inventing a new
 pattern.
+
+For a host-refereed game, use the upstream `kuhn_poker` environment as the
+control-flow reference: mint prompt-less seat tasks with seat-specific system
+prompts, open one live interaction per seat in a single `async with`, and have
+the referee call `turn(message)` only for the seats that must act. Concurrent
+moves should use `asyncio.gather`. After the contexts close, record terminal
+rewards, metrics, and replay facts on each interaction's real trace. Keep this
+logic in `Env.run()`; do not move it into a custom harness or parallel fake-game
+layer.
 
 ## Custom harnesses
 

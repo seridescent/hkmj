@@ -120,6 +120,12 @@ class ExampleTaskset(vf.Taskset[ExampleTask, vf.TasksetConfig]):
 
 Do not override `Taskset.__init__`.
 
+For a seeded synthetic stream, set `INFINITE = True` and return an `Iterator`
+from `load()`. Derive each row only from its recorded seed, for example by
+iterating `itertools.count(start_seed)` and constructing a fresh local RNG for
+each task. Store both the seed and the resulting native domain values on task
+data when consumers need direct inspection as well as reproduction.
+
 Apply these ownership rules:
 
 - Put immutable, serializable row values on `TaskData`.

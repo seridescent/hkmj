@@ -101,6 +101,7 @@ from hkmj_core.state import (
     Win,
     WinSource,
 )
+from hkmj_core.traces import HandTrace
 from hkmj_core.views import (
     AwaitingDiscardView,
     HiddenDraw,
@@ -187,6 +188,7 @@ __all__ = [
     "GreatWinds",
     "HandOver",
     "HandPattern",
+    "HandTrace",
     "HeavenlyHand",
     "HiddenDraw",
     "Honor",

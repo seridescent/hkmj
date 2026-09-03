@@ -13,6 +13,10 @@ worktree_root=$(git rev-parse --show-toplevel)
 common_git_dir=$(git rev-parse --path-format=absolute --git-common-dir)
 main_worktree_root=$(dirname "$common_git_dir")
 config="$worktree_root/config/verifiers/litellm-eval.toml"
+taskset_config="$worktree_root/config/verifiers/$taskset_id.toml"
+if [[ -f "$taskset_config" ]]; then
+    config="$taskset_config"
+fi
 
 cd "$main_worktree_root"
 exec uv run \
