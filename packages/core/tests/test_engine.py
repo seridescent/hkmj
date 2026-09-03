@@ -33,7 +33,7 @@ from hkmj_core import (
     valid_actions,
 )
 
-SCORING = Scoring(conversion=full_spicy, payments="discarder_pays_half")
+SCORING = Scoring(points=full_spicy, payments="discarder_pays_half")
 
 RULESETS = (
     Rules(),

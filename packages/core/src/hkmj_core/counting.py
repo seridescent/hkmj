@@ -6,19 +6,19 @@ hypothetical ones alike, so gating, winner resolution, and final counting
 all agree by construction.
 
 A hand may admit several readings — ordinary decompositions and limit
-criteria — each valued by the rules' injected `FaanCounting`, and the best
-reading wins. A limit reading is ineligible for hand, honor, and bonus faan
-(win-condition faan still stacks), which `LimitCount`'s shape encodes; it
-competes with ordinary readings on value like any other reading, so an
-injected valuation that inverts the usual ordering still counts correctly.
+criteria — each valued by the exhaustive `pattern_faan` match and capped by
+the rules, and the best reading wins. A limit reading is ineligible for hand,
+honor, and bonus faan (win-condition faan still stacks), which `LimitCount`'s
+shape encodes; it competes with ordinary readings on value like any other
+reading.
 
 Win by double-kong (槓上槓) is intentionally not modeled: it would thread
 chained draw provenance through two phase types for a vanishingly rare
 event. Seven pairs is likewise intentionally unsupported: a variant hand
 this ruleset does not play.
 
-TODO: faan-to-points conversion (full/half spicy) and payments, as a
-scoring layer on top of `FaanCount`.
+Faan-to-points conversion and payments remain a separate scoring layer on
+top of `FaanCount`.
 """
 
 from collections import Counter
@@ -62,6 +62,7 @@ from hkmj_core.faan import (
     WinByKong,
     WinByLastCatch,
     WinConditionPattern,
+    pattern_faan,
 )
 from hkmj_core.hands import ORPHAN_KINDS, Decomposition, decompositions
 from hkmj_core.melds import Chow, Kong, Meld, Pung
@@ -135,7 +136,7 @@ def count_faan(state: State) -> FaanCount:
             *_bonus_patterns(player.bonus, win.winner),
             *conditions,
         )
-        counts.append(OrdinaryCount(patterns, state.rules.faan(patterns)))
+        counts.append(OrdinaryCount(patterns, _count_patterns(state, patterns)))
 
         for limit in _decomposition_limit_hands(win, player.melds, decomp):
             counts.append(_limit_count(state, limit, conditions))
@@ -158,7 +159,12 @@ def _limit_count(
 ) -> LimitCount:
     if isinstance(hand, _DEFINITIONALLY_CONCEALED):
         conditions = tuple(c for c in conditions if not isinstance(c, ConcealedHand))
-    return LimitCount(hand, conditions, state.rules.faan((hand, *conditions)))
+    patterns: tuple[Pattern, ...] = (hand, *conditions)
+    return LimitCount(hand, conditions, _count_patterns(state, patterns))
+
+
+def _count_patterns(state: State, patterns: tuple[Pattern, ...]) -> int:
+    return min(state.rules.faan_cap, sum(map(pattern_faan, patterns)))
 
 
 def _decomposition_limit_hands(

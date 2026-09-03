@@ -1,4 +1,5 @@
-from dataclasses import replace
+import json
+from dataclasses import asdict, replace
 from typing import Literal
 
 import pytest
@@ -47,10 +48,15 @@ HALF_SPICY = {
 
 
 def test_half_spicy_matches_the_reference_table() -> None:
-    # full_spicy restates its implementation and gets no test; half_spicy
-    # is a derived formula (divmod + 1.5x odd steps) checked against the
-    # independently transcribed table.
-    assert {faan: half_spicy(faan) for faan in HALF_SPICY} == HALF_SPICY
+    assert half_spicy == HALF_SPICY
+
+
+def test_rules_and_scoring_are_json_data() -> None:
+    configuration = {
+        "rules": asdict(Rules(faan_cap=8)),
+        "scoring": asdict(Scoring(full_spicy, "discarder_pays_all")),
+    }
+    assert json.loads(json.dumps(configuration))["rules"]["faan_cap"] == 8
 
 
 # Common hand, concealed, no bonus faan: 2 faan by discard, 3 by self-pick
@@ -82,7 +88,7 @@ def paid(
     source: WinSource,
     payments: Literal["discarder_pays_all", "discarder_pays_half"],
 ) -> dict[Direction, int]:
-    scoring = Scoring(conversion=full_spicy, payments=payments)
+    scoring = Scoring(points=full_spicy, payments=payments)
     return dict(settle(scoring, won_state(source)))
 
 
@@ -129,7 +135,7 @@ def test_robbed_kong_promoter_is_liable() -> None:
 
 def test_goulash_settles_to_zeros() -> None:
     state = replace(won_state(FromWall()), phase=HandOver(Goulash()))
-    scoring = Scoring(conversion=half_spicy, payments="discarder_pays_all")
+    scoring = Scoring(points=half_spicy, payments="discarder_pays_all")
     assert dict(settle(scoring, state)) == {d: 0 for d in DIRECTIONS}
 
 
@@ -137,6 +143,6 @@ def test_settle_requires_a_finished_hand() -> None:
     state = replace(
         won_state(FromWall()), phase=AwaitingClaims("east", Suited("dot", 5))
     )
-    scoring = Scoring(conversion=full_spicy, payments="discarder_pays_all")
+    scoring = Scoring(points=full_spicy, payments="discarder_pays_all")
     with pytest.raises(ValueError):
         settle(scoring, state)

@@ -14,7 +14,7 @@ agreements with several live conventions and no canonical answer, so
 callers must choose.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -29,28 +29,51 @@ from hkmj_core.state import (
 )
 from hkmj_core.tiles import Direction
 
-type PointsConversion = Callable[[int], int]
-"""Faan total to points."""
+type PointsTable = Mapping[int, int]
+"""Serializable mapping from a faan total to points."""
 
 
-def full_spicy(faan: int) -> int:
-    """Points double with every faan: 2**faan."""
-    return 2**faan
+full_spicy: PointsTable = {
+    0: 1,
+    1: 2,
+    2: 4,
+    3: 8,
+    4: 16,
+    5: 32,
+    6: 64,
+    7: 128,
+    8: 256,
+    9: 512,
+    10: 1024,
+    11: 2048,
+    12: 4096,
+    13: 8192,
+}
+"""Points double with every faan."""
 
 
-def half_spicy(faan: int) -> int:
-    """Full spicy through 4 faan; above that, points double every two faan,
-    with odd steps at 1.5x the previous even step."""
-    if faan <= 4:
-        return 2**faan
-    doublings, odd = divmod(faan - 4, 2)
-    base = 2 ** (4 + doublings)
-    return base + base // 2 if odd else base
+half_spicy: PointsTable = {
+    0: 1,
+    1: 2,
+    2: 4,
+    3: 8,
+    4: 16,
+    5: 24,
+    6: 32,
+    7: 48,
+    8: 64,
+    9: 96,
+    10: 128,
+    11: 192,
+    12: 256,
+    13: 384,
+}
+"""Full spicy through 4 faan, then alternating 1.5x and 4/3x steps."""
 
 
 @dataclass(frozen=True, slots=True)
 class Scoring:
-    conversion: PointsConversion
+    points: PointsTable
     payments: Literal["discarder_pays_all", "discarder_pays_half"]
     """Liability for a win by discard (a robbed kong's promoter is liable
     like a discarder): the payer covers everything, or half, with the rest
@@ -75,7 +98,7 @@ def settle(scoring: Scoring, state: State) -> Mapping[Direction, int]:
         case _:
             raise ValueError("only finished hands can be settled")
 
-    points = scoring.conversion(count_faan(state).total)
+    points = scoring.points[count_faan(state).total]
     others = [seat for seat in state.rules.seats if seat != win.winner]
     deltas: dict[Direction, int]
     match win.source:

@@ -34,7 +34,6 @@ from hkmj_core.faan import (
     ConcealedHand,
     DragonMeld,
     EarthlyHand,
-    FaanCounting,
     FlowerOfOwnWind,
     GreatDragons,
     GreatWinds,
@@ -60,7 +59,6 @@ from hkmj_core.faan import (
     WinByKong,
     WinByLastCatch,
     WinConditionPattern,
-    default_faan,
     pattern_faan,
 )
 from hkmj_core.hands import (
@@ -81,7 +79,7 @@ from hkmj_core.melds import (
 )
 from hkmj_core.rules import Rules
 from hkmj_core.scoring import (
-    PointsConversion,
+    PointsTable,
     Scoring,
     full_spicy,
     half_spicy,
@@ -179,7 +177,6 @@ __all__ = [
     "DragonMeld",
     "EarthlyHand",
     "FaanCount",
-    "FaanCounting",
     "Flower",
     "FlowerOfOwnWind",
     "FromDiscard",
@@ -213,7 +210,7 @@ __all__ = [
     "PlayTile",
     "PlayerState",
     "PlayerView",
-    "PointsConversion",
+    "PointsTable",
     "PrevailingWind",
     "PromoteKong",
     "Pung",
@@ -246,7 +243,6 @@ __all__ = [
     "count_faan",
     "deal",
     "decompositions",
-    "default_faan",
     "full_spicy",
     "full_tile_set",
     "half_spicy",

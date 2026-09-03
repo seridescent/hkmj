@@ -7,7 +7,6 @@ it was dealt with; transitions never modify them.
 
 from dataclasses import dataclass
 
-from hkmj_core.faan import FaanCounting, default_faan
 from hkmj_core.tiles import DIRECTIONS, Direction
 
 
@@ -16,12 +15,11 @@ class Rules:
     min_faan: int = 3
     """Table minimum for a declarable win; 0 permits chicken hands."""
 
-    faan: FaanCounting = default_faan
-    """Values a winning reading's patterns as a faan total. The default is
-    the reference counting (sum, capped at 13); inject a different function
-    to revalue patterns or change the cap. Faan-to-points conversion (full
-    or half spicy) is deliberately not part of this: `min_faan` gating and
-    highest-faan winner resolution compare in faan."""
+    faan_cap: int = 13
+    """Maximum faan awarded to a winning reading after its patterns are
+    summed. Faan-to-points conversion (full or half spicy) is deliberately
+    not part of the rules: `min_faan` gating and highest-faan winner
+    resolution compare in faan."""
 
     seats: tuple[Direction, ...] = DIRECTIONS
     """Occupied seats in turn order; seats[0] is the dealer. Fewer than four

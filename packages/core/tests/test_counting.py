@@ -60,7 +60,6 @@ from hkmj_core import (
     Wind,
     meld_sort_key,
     count_faan,
-    pattern_faan,
     tile_sort_key,
     valid_actions,
 )
@@ -298,8 +297,8 @@ def test_heavenly_hand_is_capped() -> None:
     assert count_faan(state).total == 13
 
 
-def test_injected_faan_counting_can_change_the_cap() -> None:
-    capped = Rules(faan=lambda patterns: min(8, sum(map(pattern_faan, patterns))))
+def test_rules_can_change_the_faan_cap() -> None:
+    capped = Rules(faan_cap=8)
     state = win_state(
         hand=(*suited("dot", 1, 1, 1, 2, 2, 2, 3, 3, 3, 9, 9),),
         rules=capped,

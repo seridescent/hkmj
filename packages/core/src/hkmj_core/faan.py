@@ -7,14 +7,11 @@ full-spicy or half-spicy table, which is a separate, downstream layer.
 Everything in this module is denominated in faan.
 
 A `Pattern` records only the fact that a criterion fired; `pattern_faan`
-holds the reference valuations; `default_faan` is the default
-patterns-to-total counting (sum, capped at 13). Rules injects a
-`FaanCounting` to vary valuations or the cap — but not the faan-to-points
-conversion, which must stay out so that minimum-faan gating and
+holds the reference valuations. The cap belongs to the rules, while the
+faan-to-points table belongs to scoring, so minimum-faan gating and
 highest-faan winner comparison remain faan-denominated.
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from hkmj_core.tiles import DragonColor
@@ -216,9 +213,6 @@ type Pattern = (
     HandPattern | HonorPattern | BonusPattern | WinConditionPattern | LimitHand
 )
 
-type FaanCounting = Callable[[tuple[Pattern, ...]], int]
-"""Values a reading's patterns as a faan total, capping included."""
-
 
 def pattern_faan(pattern: Pattern) -> int:
     """Faan value of one pattern, from the reference tables.
@@ -263,8 +257,3 @@ def pattern_faan(pattern: Pattern) -> int:
             | ThirteenOrphans()
         ):
             return 13
-
-
-def default_faan(patterns: tuple[Pattern, ...]) -> int:
-    """Reference faan counting: sum of pattern values, capped at 13."""
-    return min(13, sum(pattern_faan(pattern) for pattern in patterns))
