@@ -244,32 +244,11 @@ def step(state: State, actions: Mapping[Direction, Action]) -> StepResult:
             action = actions[phase.seat]
             return _turn(state, phase, action), (phase.seat, action)
         case AwaitingClaims(discarder=discarder, tile=tile):
-            next_state = _claims(state, discarder, tile, actions)
-            return next_state, _resolved_claim(state, actions, next_state)
+            return _claims(state, discarder, tile, actions)
         case AwaitingKongRob(seat=promoter, tile=tile):
-            next_state = _rob(state, promoter, tile, actions)
-            return next_state, _resolved_claim(state, actions, next_state)
+            return _rob(state, promoter, tile, actions)
         case HandOver():
             raise ValueError("cannot step a finished hand")
-
-
-def _resolved_claim(
-    before: State,
-    actions: Mapping[Direction, Action],
-    after: State,
-) -> ResolvedAction | None:
-    if isinstance(after.phase, HandOver) and isinstance(after.phase.outcome, Win):
-        winner = after.phase.outcome.winner
-        return winner, actions[winner]
-    claimant = next(
-        (
-            seat
-            for seat in actions
-            if before.players[seat].melds != after.players[seat].melds
-        ),
-        None,
-    )
-    return (claimant, actions[claimant]) if claimant is not None else None
 
 
 def _turn(state: State, phase: AwaitingDiscard, action: Action) -> State:
@@ -319,7 +298,7 @@ def _claims(
     discarder: Direction,
     tile: PlayTile,
     actions: Mapping[Direction, Action],
-) -> State:
+) -> StepResult:
     order = _claimants(state.rules.seats, discarder)
     won = _resolve_winners(state, order, actions, tile, FromDiscard(discarder))
     if won is not None:
@@ -329,29 +308,37 @@ def _claims(
         player = state.players[seat]
         match actions[seat]:
             case ClaimKong():
-                return _draw_into_turn(
+                return (
+                    _draw_into_turn(
+                        _update(
+                            state,
+                            seat,
+                            replace(
+                                player,
+                                hand=_remove(player.hand, tile, tile, tile),
+                                melds=_add_meld(
+                                    player.melds, Kong(tile, concealed=False)
+                                ),
+                            ),
+                        ),
+                        seat,
+                        from_back=True,
+                    ),
+                    (seat, actions[seat]),
+                )
+            case ClaimPung():
+                return (
                     _update(
                         state,
                         seat,
                         replace(
                             player,
-                            hand=_remove(player.hand, tile, tile, tile),
-                            melds=_add_meld(player.melds, Kong(tile, concealed=False)),
+                            hand=_remove(player.hand, tile, tile),
+                            melds=_add_meld(player.melds, Pung(tile)),
                         ),
+                        phase=AwaitingDiscard(seat, None),
                     ),
-                    seat,
-                    from_back=True,
-                )
-            case ClaimPung():
-                return _update(
-                    state,
-                    seat,
-                    replace(
-                        player,
-                        hand=_remove(player.hand, tile, tile),
-                        melds=_add_meld(player.melds, Pung(tile)),
-                    ),
-                    phase=AwaitingDiscard(seat, None),
+                    (seat, actions[seat]),
                 )
             case _:
                 pass
@@ -362,32 +349,38 @@ def _claims(
                 assert isinstance(tile, Suited)  # guaranteed by _claim_actions
                 chow = Chow(tile.suit, start)
                 player = state.players[seat]
-                return _update(
-                    state,
-                    seat,
-                    replace(
-                        player,
-                        hand=_remove(
-                            player.hand,
-                            *(cand for cand in chow.tiles if cand != tile),
+                return (
+                    _update(
+                        state,
+                        seat,
+                        replace(
+                            player,
+                            hand=_remove(
+                                player.hand,
+                                *(cand for cand in chow.tiles if cand != tile),
+                            ),
+                            melds=_add_meld(player.melds, chow),
                         ),
-                        melds=_add_meld(player.melds, chow),
+                        phase=AwaitingDiscard(seat, None),
                     ),
-                    phase=AwaitingDiscard(seat, None),
+                    (seat, actions[seat]),
                 )
             case _:
                 pass
 
     # Everyone passed: the discard becomes history and the next seat draws.
     player = state.players[discarder]
-    return _draw_into_turn(
-        _update(
-            state,
-            discarder,
-            replace(player, discards=(*player.discards, tile)),
+    return (
+        _draw_into_turn(
+            _update(
+                state,
+                discarder,
+                replace(player, discards=(*player.discards, tile)),
+            ),
+            next_seat(discarder, state.rules.seats),
+            from_back=False,
         ),
-        next_seat(discarder, state.rules.seats),
-        from_back=False,
+        None,
     )
 
 
@@ -396,26 +389,30 @@ def _rob(
     promoter: Direction,
     tile: PlayTile,
     actions: Mapping[Direction, Action],
-) -> State:
+) -> StepResult:
     order = _claimants(state.rules.seats, promoter)
     won = _resolve_winners(state, order, actions, tile, FromRobbedKong(promoter))
     if won is not None:
         return won
 
     player = state.players[promoter]
-    return _draw_into_turn(
-        _update(
-            state,
-            promoter,
-            replace(
-                player,
-                melds=_add_meld(
-                    _remove_meld(player.melds, Pung(tile)), Kong(tile, concealed=False)
+    return (
+        _draw_into_turn(
+            _update(
+                state,
+                promoter,
+                replace(
+                    player,
+                    melds=_add_meld(
+                        _remove_meld(player.melds, Pung(tile)),
+                        Kong(tile, concealed=False),
+                    ),
                 ),
             ),
+            promoter,
+            from_back=True,
         ),
-        promoter,
-        from_back=True,
+        None,
     )
 
 
@@ -425,7 +422,7 @@ def _resolve_winners(
     actions: Mapping[Direction, Action],
     tile: PlayTile,
     source: WinSource,
-) -> State | None:
+) -> StepResult | None:
     """Settle any DeclareWin claims, or None when there are none.
 
     Highest faan wins; max() keeps the earliest seat on ties, and `order`
@@ -439,7 +436,7 @@ def _resolve_winners(
         winners,
         key=lambda seat: count_faan(_win_state(state, seat, tile, source)).total,
     )
-    return _win_state(state, best, tile, source)
+    return _win_state(state, best, tile, source), (best, actions[best])
 
 
 def _win_state(
