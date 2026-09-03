@@ -1,11 +1,11 @@
 """Game engine: dealing, valid actions, and the transition function.
 
-Everything after the deal is pure and deterministic: `step(state, actions)
--> state`, with all randomness confined to the wall order fixed by `deal`,
-and the rules fixed inside the state itself. `valid_actions` is the single
-source of truth for legality; `step`
-validates against it and raises ValueError on any violation, so illegal
-play is unrepresentable in a trajectory.
+Everything after the deal is pure and deterministic: `step(state, actions)`
+returns the next state and resolved action. All randomness is confined to the
+wall order fixed by `deal`, and the rules stay inside the state itself.
+`valid_actions` is the single source of truth for legality; `step` validates
+against it and raises ValueError on any violation, so illegal play is
+unrepresentable in a trajectory.
 
 Conventions encoded here rather than in the types:
 
@@ -68,6 +68,9 @@ from hkmj_core.tiles import (
     next_seat,
     tile_sort_key,
 )
+
+type ResolvedAction = tuple[Direction, Action]
+type StepResult = tuple[State, ResolvedAction | None]
 
 
 def deal(rules: Rules, prevailing: Direction, rng: Random) -> State:
@@ -221,8 +224,12 @@ def _can_declare(
     )
 
 
-def step(state: State, actions: Mapping[Direction, Action]) -> State:
-    """Advance one transition given every required seat's chosen action."""
+def step(state: State, actions: Mapping[Direction, Action]) -> StepResult:
+    """Advance one transition and report the action selected by resolution.
+
+    The resolved action is ``(seat, action)``. It is ``None`` when every seat
+    in a claim or kong-rob window passes.
+    """
     allowed = valid_actions(state)
     if actions.keys() != allowed.keys():
         raise ValueError(
@@ -234,13 +241,35 @@ def step(state: State, actions: Mapping[Direction, Action]) -> State:
 
     match state.phase:
         case AwaitingDiscard() as phase:
-            return _turn(state, phase, actions[phase.seat])
+            action = actions[phase.seat]
+            return _turn(state, phase, action), (phase.seat, action)
         case AwaitingClaims(discarder=discarder, tile=tile):
-            return _claims(state, discarder, tile, actions)
+            next_state = _claims(state, discarder, tile, actions)
+            return next_state, _resolved_claim(state, actions, next_state)
         case AwaitingKongRob(seat=promoter, tile=tile):
-            return _rob(state, promoter, tile, actions)
+            next_state = _rob(state, promoter, tile, actions)
+            return next_state, _resolved_claim(state, actions, next_state)
         case HandOver():
             raise ValueError("cannot step a finished hand")
+
+
+def _resolved_claim(
+    before: State,
+    actions: Mapping[Direction, Action],
+    after: State,
+) -> ResolvedAction | None:
+    if isinstance(after.phase, HandOver) and isinstance(after.phase.outcome, Win):
+        winner = after.phase.outcome.winner
+        return winner, actions[winner]
+    claimant = next(
+        (
+            seat
+            for seat in actions
+            if before.players[seat].melds != after.players[seat].melds
+        ),
+        None,
+    )
+    return (claimant, actions[claimant]) if claimant is not None else None
 
 
 def _turn(state: State, phase: AwaitingDiscard, action: Action) -> State:

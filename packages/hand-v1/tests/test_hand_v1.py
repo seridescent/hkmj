@@ -55,7 +55,7 @@ def test_hand_trace_serializes_and_replays_native_actions() -> None:
             for seat, legal in available.items()
         }
         batches.append(actions)
-        state = step(state, actions)
+        state, _ = step(state, actions)
 
     hand_trace = HandTrace(initial, tuple(batches))
     adapter = TypeAdapter(HandTrace)

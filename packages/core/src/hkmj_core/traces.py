@@ -21,5 +21,5 @@ class HandTrace:
 
         state = self.initial_state
         for actions in self.action_batches:
-            state = step(state, actions)
+            state, _ = step(state, actions)
         return state

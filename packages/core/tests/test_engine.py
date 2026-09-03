@@ -11,7 +11,9 @@ from hkmj_core import (
     AwaitingDiscard,
     AwaitingKongRob,
     Chow,
+    ClaimPung,
     Direction,
+    Discard,
     HandOver,
     Kong,
     Meld,
@@ -21,6 +23,7 @@ from hkmj_core import (
     Rules,
     Scoring,
     State,
+    Suited,
     Win,
     count_faan,
     deal,
@@ -126,7 +129,7 @@ def test_random_playouts_terminate_with_invariants(
             seat: rng.choice(sorted(acts, key=repr))
             for seat, acts in valid_actions(state).items()
         }
-        state = step(state, chosen)
+        state, _ = step(state, chosen)
         assert_invariants(state)
     assert isinstance(state.phase, HandOver)
 
@@ -144,3 +147,21 @@ def test_step_validates_actions() -> None:
         step(state, {})
     with pytest.raises(ValueError):
         step(state, {state.phase.seat: Pass()})
+
+
+def test_step_reports_the_action_selected_by_resolution() -> None:
+    state = deal(Rules(min_faan=0, melds_to_win=1), "east", random.Random(27))
+    discard = Discard(Suited("dot", 7))
+    claims, resolved = step(state, {"east": discard})
+    assert resolved == ("east", discard)
+
+    passed = {seat: Pass() for seat in valid_actions(claims)}
+    _, resolved = step(claims, passed)
+    assert resolved is None
+
+    pung = {
+        seat: ClaimPung() if seat == "west" else Pass()
+        for seat in valid_actions(claims)
+    }
+    _, resolved = step(claims, pung)
+    assert resolved == ("west", ClaimPung())

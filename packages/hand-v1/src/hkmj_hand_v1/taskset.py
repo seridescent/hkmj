@@ -180,7 +180,7 @@ class HandEnv(vf.Env[HandEnvConfig]):
                     )
                     updates.append(render_update(seat, label, data.prompt_contract))
                 action_batches.append(actions)
-                state = step(state, actions)
+                state, _ = step(state, actions)
 
         hand_trace = HandTrace(data.initial_state, tuple(action_batches))
         if hand_trace.replay() != state:

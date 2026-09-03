@@ -21,7 +21,7 @@ from hkmj_core.counting import (
     count_faan,
     is_thirteen_orphans,
 )
-from hkmj_core.engine import deal, step, valid_actions
+from hkmj_core.engine import ResolvedAction, StepResult, deal, step, valid_actions
 from hkmj_core.faan import (
     AllFlowers,
     AllHonorTiles,
@@ -219,6 +219,7 @@ __all__ = [
     "RobAction",
     "RobbingTheKong",
     "Rules",
+    "ResolvedAction",
     "Scoring",
     "Season",
     "SeasonOfOwnWind",
@@ -228,6 +229,7 @@ __all__ = [
     "SmallDragons",
     "SmallWinds",
     "State",
+    "StepResult",
     "Suit",
     "Suited",
     "ThirteenOrphans",

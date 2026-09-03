@@ -45,7 +45,7 @@ def test_public_phases_pass_through() -> None:
         for action in sorted(valid_actions(state)[seat], key=repr)
         if isinstance(action, Discard)
     )
-    state = step(state, {seat: discard})
+    state, _ = step(state, {seat: discard})
     assert isinstance(state.phase, AwaitingClaims)
     for direction in DIRECTIONS:
         assert player_view(state, direction).phase == state.phase
