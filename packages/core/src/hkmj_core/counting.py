@@ -23,7 +23,8 @@ top of `FaanCount`.
 
 from collections import Counter
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 from hkmj_core.faan import (
     AllFlowers,
@@ -90,6 +91,7 @@ from hkmj_core.tiles import (
 
 @dataclass(frozen=True, slots=True)
 class OrdinaryCount:
+    kind: Literal["ordinary_count"] = field(kw_only=True, default="ordinary_count")
     patterns: tuple[Pattern, ...]
     total: int
     """The rules' valuation of the patterns (capping included)."""
@@ -97,6 +99,7 @@ class OrdinaryCount:
 
 @dataclass(frozen=True, slots=True)
 class LimitCount:
+    kind: Literal["limit_count"] = field(kw_only=True, default="limit_count")
     hand: LimitHand
     conditions: tuple[WinConditionPattern, ...]
     """Only win-condition faan stacks with a limit hand; ineligibility for

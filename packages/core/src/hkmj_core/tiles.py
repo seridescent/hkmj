@@ -1,12 +1,16 @@
 """Tile types for Old Hong Kong mahjong.
 
-Each variant is its own frozen dataclass, so the class is the discriminant:
-`match` class patterns and `isinstance` both narrow the `Tile` union without
-needing a literal tag field.
+Each variant is its own frozen dataclass with a literal `kind` discriminator.
+Class patterns and `isinstance` still narrow the `Tile` union in Python, while
+the tag keeps the same union unambiguous after serialization.
+
+Discriminators are keyword-only rather than `init=False`: real data keeps its
+clean positional constructor and pattern matching, while validators can still
+check the tag when reconstructing a value.
 """
 
 from collections.abc import Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 type Direction = Literal["east", "south", "west", "north"]
@@ -20,27 +24,32 @@ type BonusNumber = Literal[1, 2, 3, 4]
 
 @dataclass(frozen=True, slots=True)
 class Suited:
+    kind: Literal["suited"] = field(kw_only=True, default="suited")
     suit: Suit
     number: Number
 
 
 @dataclass(frozen=True, slots=True)
 class Wind:
+    kind: Literal["wind"] = field(kw_only=True, default="wind")
     direction: Direction
 
 
 @dataclass(frozen=True, slots=True)
 class Dragon:
+    kind: Literal["dragon"] = field(kw_only=True, default="dragon")
     color: DragonColor
 
 
 @dataclass(frozen=True, slots=True)
 class Flower:
+    kind: Literal["flower"] = field(kw_only=True, default="flower")
     number: BonusNumber
 
 
 @dataclass(frozen=True, slots=True)
 class Season:
+    kind: Literal["season"] = field(kw_only=True, default="season")
     number: BonusNumber
 
 

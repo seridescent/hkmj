@@ -18,7 +18,8 @@ reveal is the consumer's affair, since it holds the true state.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 from hkmj_core.melds import Meld
 from hkmj_core.rules import Rules
@@ -37,12 +38,17 @@ from hkmj_core.tiles import Bonus, Direction, PlayTile
 class HiddenDraw:
     """Another seat's drawn tile: known to exist, identity unknown."""
 
+    kind: Literal["hidden_draw"] = field(kw_only=True, default="hidden_draw")
+
 
 type ViewedDraw = PlayTile | HiddenDraw | None
 
 
 @dataclass(frozen=True, slots=True)
 class AwaitingDiscardView:
+    kind: Literal["awaiting_discard_view"] = field(
+        kw_only=True, default="awaiting_discard_view"
+    )
     seat: Direction
     drawn: ViewedDraw
     replacement: bool = False

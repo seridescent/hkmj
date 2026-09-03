@@ -12,49 +12,50 @@ faan-to-points table belongs to scoring, so minimum-faan gating and
 highest-faan winner comparison remain faan-denominated.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 from hkmj_core.tiles import DragonColor
 
 
 @dataclass(frozen=True, slots=True)
 class CommonHand:
-    pass
+    kind: Literal["common_hand"] = field(kw_only=True, default="common_hand")
 
 
 @dataclass(frozen=True, slots=True)
 class AllInTriplets:
-    pass
+    kind: Literal["all_in_triplets"] = field(kw_only=True, default="all_in_triplets")
 
 
 @dataclass(frozen=True, slots=True)
 class MixedOrphans:
-    pass
+    kind: Literal["mixed_orphans"] = field(kw_only=True, default="mixed_orphans")
 
 
 @dataclass(frozen=True, slots=True)
 class MixedOneSuit:
-    pass
+    kind: Literal["mixed_one_suit"] = field(kw_only=True, default="mixed_one_suit")
 
 
 @dataclass(frozen=True, slots=True)
 class AllOneSuit:
-    pass
+    kind: Literal["all_one_suit"] = field(kw_only=True, default="all_one_suit")
 
 
 @dataclass(frozen=True, slots=True)
 class SmallDragons:
-    pass
+    kind: Literal["small_dragons"] = field(kw_only=True, default="small_dragons")
 
 
 @dataclass(frozen=True, slots=True)
 class GreatDragons:
-    pass
+    kind: Literal["great_dragons"] = field(kw_only=True, default="great_dragons")
 
 
 @dataclass(frozen=True, slots=True)
 class SmallWinds:
-    pass
+    kind: Literal["small_winds"] = field(kw_only=True, default="small_winds")
 
 
 type HandPattern = (
@@ -71,16 +72,17 @@ type HandPattern = (
 
 @dataclass(frozen=True, slots=True)
 class SeatWind:
-    pass
+    kind: Literal["seat_wind"] = field(kw_only=True, default="seat_wind")
 
 
 @dataclass(frozen=True, slots=True)
 class PrevailingWind:
-    pass
+    kind: Literal["prevailing_wind"] = field(kw_only=True, default="prevailing_wind")
 
 
 @dataclass(frozen=True, slots=True)
 class DragonMeld:
+    kind: Literal["dragon_meld"] = field(kw_only=True, default="dragon_meld")
     color: DragonColor
 
 
@@ -89,27 +91,31 @@ type HonorPattern = SeatWind | PrevailingWind | DragonMeld
 
 @dataclass(frozen=True, slots=True)
 class NoBonusTiles:
-    pass
+    kind: Literal["no_bonus_tiles"] = field(kw_only=True, default="no_bonus_tiles")
 
 
 @dataclass(frozen=True, slots=True)
 class FlowerOfOwnWind:
-    pass
+    kind: Literal["flower_of_own_wind"] = field(
+        kw_only=True, default="flower_of_own_wind"
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class SeasonOfOwnWind:
-    pass
+    kind: Literal["season_of_own_wind"] = field(
+        kw_only=True, default="season_of_own_wind"
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class AllFlowers:
-    pass
+    kind: Literal["all_flowers"] = field(kw_only=True, default="all_flowers")
 
 
 @dataclass(frozen=True, slots=True)
 class AllSeasons:
-    pass
+    kind: Literal["all_seasons"] = field(kw_only=True, default="all_seasons")
 
 
 type BonusPattern = (
@@ -119,37 +125,39 @@ type BonusPattern = (
 
 @dataclass(frozen=True, slots=True)
 class SelfPick:
-    pass
+    kind: Literal["self_pick"] = field(kw_only=True, default="self_pick")
 
 
 @dataclass(frozen=True, slots=True)
 class WinByKong:
-    pass
+    kind: Literal["win_by_kong"] = field(kw_only=True, default="win_by_kong")
 
 
 @dataclass(frozen=True, slots=True)
 class RobbingTheKong:
-    pass
+    kind: Literal["robbing_the_kong"] = field(kw_only=True, default="robbing_the_kong")
 
 
 @dataclass(frozen=True, slots=True)
 class ConcealedHand:
-    pass
+    kind: Literal["concealed_hand"] = field(kw_only=True, default="concealed_hand")
 
 
 @dataclass(frozen=True, slots=True)
 class WinByLastCatch:
-    pass
+    kind: Literal["win_by_last_catch"] = field(
+        kw_only=True, default="win_by_last_catch"
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class HeavenlyHand:
-    pass
+    kind: Literal["heavenly_hand"] = field(kw_only=True, default="heavenly_hand")
 
 
 @dataclass(frozen=True, slots=True)
 class EarthlyHand:
-    pass
+    kind: Literal["earthly_hand"] = field(kw_only=True, default="earthly_hand")
 
 
 type WinConditionPattern = (
@@ -165,7 +173,7 @@ type WinConditionPattern = (
 
 @dataclass(frozen=True, slots=True)
 class AllHonorTiles:
-    pass
+    kind: Literal["all_honor_tiles"] = field(kw_only=True, default="all_honor_tiles")
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,30 +181,34 @@ class SelfTriplets:
     """Every meld a concealed pung or kong, won by self-pick or by a
     discard completing the eyes."""
 
+    kind: Literal["self_triplets"] = field(kw_only=True, default="self_triplets")
+
 
 @dataclass(frozen=True, slots=True)
 class Orphans:
     """Pungs/kongs of ones and nines only — no honors, unlike MixedOrphans."""
 
+    kind: Literal["orphans"] = field(kw_only=True, default="orphans")
+
 
 @dataclass(frozen=True, slots=True)
 class NineGates:
-    pass
+    kind: Literal["nine_gates"] = field(kw_only=True, default="nine_gates")
 
 
 @dataclass(frozen=True, slots=True)
 class GreatWinds:
-    pass
+    kind: Literal["great_winds"] = field(kw_only=True, default="great_winds")
 
 
 @dataclass(frozen=True, slots=True)
 class AllKongs:
-    pass
+    kind: Literal["all_kongs"] = field(kw_only=True, default="all_kongs")
 
 
 @dataclass(frozen=True, slots=True)
 class ThirteenOrphans:
-    pass
+    kind: Literal["thirteen_orphans"] = field(kw_only=True, default="thirteen_orphans")
 
 
 type LimitHand = (

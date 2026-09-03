@@ -7,7 +7,7 @@ convention). Chows and pungs formed entirely by drawing stay as loose tiles in
 the concealed hand.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, cast
 
 from hkmj_core.tiles import Honor, Number, Suit, Suited, tile_sort_key
@@ -19,6 +19,7 @@ CHOW_STARTS: tuple[ChowStart, ...] = (1, 2, 3, 4, 5, 6, 7)
 
 @dataclass(frozen=True, slots=True)
 class Chow:
+    kind: Literal["chow"] = field(kw_only=True, default="chow")
     suit: Suit
     start: ChowStart
 
@@ -35,11 +36,13 @@ class Chow:
 
 @dataclass(frozen=True, slots=True)
 class Pung:
+    kind: Literal["pung"] = field(kw_only=True, default="pung")
     tile: Suited | Honor
 
 
 @dataclass(frozen=True, slots=True)
 class Kong:
+    kind: Literal["kong"] = field(kw_only=True, default="kong")
     tile: Suited | Honor
     concealed: bool
     """True only for a kong declared from four self-drawn tiles.

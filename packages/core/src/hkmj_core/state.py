@@ -11,7 +11,8 @@ down — concealed kong identities) happens in the view layer, never here.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
 from hkmj_core.melds import Meld
 from hkmj_core.rules import Rules
@@ -32,6 +33,7 @@ class PlayerState:
 class AwaitingDiscard:
     """`seat` holds a 14th tile and must discard (or declare a kong or win)."""
 
+    kind: Literal["awaiting_discard"] = field(kw_only=True, default="awaiting_discard")
     seat: Direction
     drawn: PlayTile | None
     """The tile just drawn, or None when the 14th tile came from a claimed
@@ -47,6 +49,7 @@ class AwaitingDiscard:
 class AwaitingClaims:
     """`tile` was just discarded; every other seat may claim it or pass."""
 
+    kind: Literal["awaiting_claims"] = field(kw_only=True, default="awaiting_claims")
     discarder: Direction
     tile: PlayTile
 
@@ -62,6 +65,9 @@ class AwaitingKongRob:
     is not robbable under this ruleset.
     """
 
+    kind: Literal["awaiting_kong_rob"] = field(
+        kw_only=True, default="awaiting_kong_rob"
+    )
     seat: Direction
     tile: PlayTile
 
@@ -70,17 +76,20 @@ class AwaitingKongRob:
 class FromWall:
     """Self-pick: the winner drew the winning tile (doubles the base payment)."""
 
+    kind: Literal["from_wall"] = field(kw_only=True, default="from_wall")
     replacement: bool = False
     """Winning tile was a kong or bonus-tile replacement draw (win by kong)."""
 
 
 @dataclass(frozen=True, slots=True)
 class FromDiscard:
+    kind: Literal["from_discard"] = field(kw_only=True, default="from_discard")
     discarder: Direction
 
 
 @dataclass(frozen=True, slots=True)
 class FromRobbedKong:
+    kind: Literal["from_robbed_kong"] = field(kw_only=True, default="from_robbed_kong")
     promoter: Direction
 
 
@@ -89,6 +98,7 @@ type WinSource = FromWall | FromDiscard | FromRobbedKong
 
 @dataclass(frozen=True, slots=True)
 class Win:
+    kind: Literal["win"] = field(kw_only=True, default="win")
     winner: Direction
     winning_tile: PlayTile
     source: WinSource
@@ -98,12 +108,15 @@ class Win:
 class Goulash:
     """Wall exhausted with no winner."""
 
+    kind: Literal["goulash"] = field(kw_only=True, default="goulash")
+
 
 type Outcome = Win | Goulash
 
 
 @dataclass(frozen=True, slots=True)
 class HandOver:
+    kind: Literal["hand_over"] = field(kw_only=True, default="hand_over")
     outcome: Outcome
 
 
