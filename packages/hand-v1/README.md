@@ -36,8 +36,9 @@ scripts/eval-litellm hkmj-hand-v1 -n 1 --dry-run
 
 ## Player endpoints
 
-Local human and non-LLM player adapters are out of scope. To evaluate one, put
-it upstream of the Verifiers interception server as an OpenAI-compatible
-endpoint and give it a clear model slug such as `human/local` or
-`bot/greedy-v1`. The ordinary resumable null harness will then capture its calls
+The [human player](../human) supplies a terminal-operated endpoint and an example
+config for playing East against three models. Player adapters sit
+upstream of the Verifiers interception server as OpenAI-compatible
+endpoints with clear model slugs such as `human/local` or
+`bot/greedy-v1`. The ordinary resumable null harness captures their calls
 as real trace nodes without a special game harness.
