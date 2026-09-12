@@ -1,10 +1,44 @@
+# With LiteLLM running on :4000, start the human responder in one terminal:
+#   uv run --package hkmj-human hkmj-human
+# Then play East against three Codex Lunas from another terminal:
+#   scripts/eval-litellm hkmj-hand-v1 -n 1
+
 model = "gpt-5.6-luna"
 max_concurrent = 1
 push = false
-
-[env.agent.harness]
-id = "hkmj-streaming-null-v1"
+# The launcher uses --no-serve: worker transport rejects scoring-table integer keys.
 
 [client]
 type = "eval"
 base_url = "http://127.0.0.1:4000/v1"
+
+[env.east]
+model = "human/local"
+
+[env.east.client]
+type = "eval"
+base_url = "http://127.0.0.1:4001/v1"
+api_key_var = "HKMJ_HUMAN_API_KEY"
+
+# Run every seat locally; Verifiers otherwise defaults to Prime sandboxes.
+[env.east.runtime]
+type = "subprocess"
+
+[env.south.runtime]
+type = "subprocess"
+
+[env.west.runtime]
+type = "subprocess"
+
+[env.north.runtime]
+type = "subprocess"
+
+# LiteLLM requires streamed responses for these model seats.
+[env.south.harness]
+id = "hkmj-streaming-null-v1"
+
+[env.west.harness]
+id = "hkmj-streaming-null-v1"
+
+[env.north.harness]
+id = "hkmj-streaming-null-v1"

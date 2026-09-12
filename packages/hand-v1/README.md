@@ -14,6 +14,11 @@ but it must put exactly one legal action in square brackets, such as
 `[discard 9 myriad]` or `[pung]`. The rollout fails if an interaction terminates
 or exhausts its allowed invalid replies.
 
+When a seat has only one legal action, the referee takes it without prompting.
+These actions still appear in the replay and ordinary public updates; the log
+does not distinguish forced passes from chosen passes. Skipped seats receive
+their accumulated updates the next time they have a decision to make.
+
 Prompts are task data. `HandPrompt` carries the rules text, state, update,
 system, turn, and invalid-action templates, bracket instructions, and tile
 rendering. Fixed hand context goes in the seat's system prompt; turn prompts
@@ -36,8 +41,9 @@ scripts/eval-litellm hkmj-hand-v1 -n 1 --dry-run
 
 ## Player endpoints
 
-Local human and non-LLM player adapters are out of scope. To evaluate one, put
-it upstream of the Verifiers interception server as an OpenAI-compatible
-endpoint and give it a clear model slug such as `human/local` or
-`bot/greedy-v1`. The ordinary resumable null harness will then capture its calls
+The [human player](../human) supplies a terminal-operated endpoint and an example
+config for playing East against three models. Player adapters sit
+upstream of the Verifiers interception server as OpenAI-compatible
+endpoints with clear model slugs such as `human/local` or
+`bot/greedy-v1`. The ordinary resumable null harness captures their calls
 as real trace nodes without a special game harness.

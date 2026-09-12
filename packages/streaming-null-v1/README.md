@@ -3,6 +3,9 @@
 This package provides a one-turn Verifiers v1 harness with no tools or agent
 loop. It sends the task prompt through the supplied interception endpoint using
 a streaming OpenAI Chat Completions request, consumes the response, and exits.
+It supports resumed interactions by replaying the accumulated conversation on
+each turn. The shared eval config uses this harness for South, West, and North;
+East's human endpoint uses the ordinary null harness.
 
 The streaming request avoids provider adapters that fail while assembling a
 non-streaming response. Verifiers still owns model selection, sampling, trace

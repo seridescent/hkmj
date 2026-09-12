@@ -136,6 +136,9 @@ class HandEnv(vf.Env[HandEnvConfig]):
             async def choose_action(
                 seat: Direction, legal_actions: frozenset[Action]
             ) -> Action:
+                if len(legal_actions) == 1:
+                    return next(iter(legal_actions))
+
                 view = player_view(state, seat)
                 labeled_actions = actions_by_label(
                     legal_actions, view, data.prompt_contract
@@ -158,9 +161,11 @@ class HandEnv(vf.Env[HandEnvConfig]):
                             f"{seat} interaction terminated before choosing an action "
                             f"({reason})"
                         )
+
                     action = parse_action(segment.last_reply, labeled_actions)
                     if action is not None:
                         return action
+
                     invalid_actions[seat] += 1
                     prompt = render_invalid_prompt(
                         labeled_actions, data.prompt_contract

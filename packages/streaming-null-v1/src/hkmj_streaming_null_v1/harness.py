@@ -1,6 +1,8 @@
+import json
 from pathlib import Path
 
 import verifiers.v1 as vf
+from verifiers.v1.dialects.chat import message_to_wire
 
 PROGRAM_SOURCE = (Path(__file__).resolve().parent / "program.py").read_text()
 
@@ -13,6 +15,9 @@ class StreamingNullHarness(vf.Harness[StreamingNullHarnessConfig]):
     """Make one streaming Chat Completions request and then exit."""
 
     APPENDS_SYSTEM_PROMPT = True
+    SUPPORTS_RESUME = True
+    EXECUTES_CODE = False
+    NEEDS_CONTAINER = False
 
     async def setup(self, runtime: vf.Runtime) -> None:
         await runtime.prepare_uv_script(PROGRAM_SOURCE, self.config.resolved_env)
@@ -36,9 +41,15 @@ class StreamingNullHarness(vf.Harness[StreamingNullHarnessConfig]):
         ]
         if system_prompt:
             args.append(f"--system-prompt={system_prompt}")
-        if prompt is not None:
-            assert isinstance(prompt, str)
+        if isinstance(prompt, str):
             args.append(f"--prompt={prompt}")
+        elif prompt is not None:
+            path = f".vf-initial-messages-{trace.id}.json"
+            await runtime.write(
+                path,
+                json.dumps([message_to_wire(message) for message in prompt]).encode(),
+            )
+            args.append(f"--initial-messages-file={path}")
         program = await runtime.prepare_uv_script(
             PROGRAM_SOURCE, self.config.resolved_env
         )
