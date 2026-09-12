@@ -129,22 +129,35 @@ def _melds(melds: Iterable[Meld], prompt: HandPrompt) -> str:
     return "; ".join(rendered) if rendered else "none"
 
 
-def _opponent_line(seat: Direction, opponent: OpponentView, prompt: HandPrompt) -> str:
-    return (
-        f"- {seat}: {opponent.hand_size} concealed tiles; "
-        f"melds: {_melds(opponent.melds, prompt)}; "
-        f"bonus: {_tiles(opponent.bonus, prompt)}; "
-        f"discards: {_tiles(opponent.discards, prompt)}"
+def _opponent_block(seat: Direction, opponent: OpponentView, prompt: HandPrompt) -> str:
+    return "\n".join(
+        [
+            f"{seat.capitalize()}:",
+            f"Concealed tiles: {opponent.hand_size}.",
+            f"Melds: {_melds(opponent.melds, prompt)}.",
+            f"Bonus tiles: {_tiles(opponent.bonus, prompt)}.",
+            f"Discards: {_tiles(opponent.discards, prompt)}.",
+        ]
     )
 
 
 def render_view(view: PlayerView, prompt: HandPrompt) -> str:
     lines = [
         f"Tiles left in wall: {view.wall_count}.",
-        f"Your concealed hand: {_tiles(view.me.hand, prompt)}.",
-        f"Your melds: {_melds(view.me.melds, prompt)}.",
-        f"Your bonus tiles: {_tiles(view.me.bonus, prompt)}.",
-        f"Your discards: {_tiles(view.me.discards, prompt)}.",
+        "",
+        "Opponents:",
+        "",
+        "\n\n".join(
+            _opponent_block(seat, opponent, prompt)
+            for seat, opponent in view.opponents.items()
+        ),
+        "",
+        f"You ({view.seat}):",
+        f"Concealed hand: {_tiles(view.me.hand, prompt)}.",
+        f"Melds: {_melds(view.me.melds, prompt)}.",
+        f"Bonus tiles: {_tiles(view.me.bonus, prompt)}.",
+        f"Discards: {_tiles(view.me.discards, prompt)}.",
+        "",
     ]
     match view.phase:
         case AwaitingDiscardView(seat=actor, drawn=drawn, replacement=replacement):
@@ -168,11 +181,6 @@ def render_view(view: PlayerView, prompt: HandPrompt) -> str:
             )
         case HandOver():
             lines.append("The hand is over.")
-    lines.append("Opponents:")
-    lines.extend(
-        _opponent_line(seat, opponent, prompt)
-        for seat, opponent in view.opponents.items()
-    )
     return "\n".join(lines)
 
 

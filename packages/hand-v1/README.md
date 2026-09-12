@@ -14,6 +14,11 @@ but it must put exactly one legal action in square brackets, such as
 `[discard 9 myriad]` or `[pung]`. The rollout fails if an interaction terminates
 or exhausts its allowed invalid replies.
 
+When a seat has only one legal action, the referee takes it without prompting.
+These actions still appear in the replay and ordinary public updates; the log
+does not distinguish forced passes from chosen passes. Skipped seats receive
+their accumulated updates the next time they have a decision to make.
+
 Prompts are task data. `HandPrompt` carries the rules text, state, update,
 system, turn, and invalid-action templates, bracket instructions, and tile
 rendering. Fixed hand context goes in the seat's system prompt; turn prompts
