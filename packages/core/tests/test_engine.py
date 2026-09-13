@@ -6,13 +6,11 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from hkmj_core import (
-    DIRECTIONS,
     AwaitingClaims,
     AwaitingDiscard,
     AwaitingKongRob,
     Chow,
     ClaimPung,
-    Direction,
     Discard,
     HandOver,
     Kong,
@@ -113,14 +111,11 @@ def assert_invariants(state: State) -> None:
 @given(
     seed=st.integers(0, 2**32 - 1),
     rules=st.sampled_from(RULESETS),
-    prevailing=st.sampled_from(DIRECTIONS),
 )
 @settings(max_examples=30, deadline=None)
-def test_random_playouts_terminate_with_invariants(
-    seed: int, rules: Rules, prevailing: Direction
-) -> None:
+def test_random_playouts_terminate_with_invariants(seed: int, rules: Rules) -> None:
     rng = random.Random(seed)
-    state = deal(rules, prevailing, rng)
+    state = deal(rules, rng)
     assert_invariants(state)
     for _ in range(600):
         if isinstance(state.phase, HandOver):
@@ -135,13 +130,11 @@ def test_random_playouts_terminate_with_invariants(
 
 
 def test_deal_is_deterministic() -> None:
-    assert deal(Rules(), "east", random.Random(7)) == deal(
-        Rules(), "east", random.Random(7)
-    )
+    assert deal(Rules(), random.Random(7)) == deal(Rules(), random.Random(7))
 
 
 def test_step_validates_actions() -> None:
-    state = deal(Rules(), "east", random.Random(0))
+    state = deal(Rules(), random.Random(0))
     assert isinstance(state.phase, AwaitingDiscard)
     with pytest.raises(ValueError):
         step(state, {})
@@ -150,7 +143,7 @@ def test_step_validates_actions() -> None:
 
 
 def test_step_reports_the_action_selected_by_resolution() -> None:
-    state = deal(Rules(min_faan=0, melds_to_win=1), "east", random.Random(27))
+    state = deal(Rules(min_faan=0, melds_to_win=1), random.Random(27))
     discard = Discard(Suited("dot", 7))
     claims, resolved = step(state, {"east": discard})
     assert resolved == ("east", discard)

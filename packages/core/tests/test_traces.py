@@ -16,7 +16,7 @@ from hkmj_core import (
 
 
 def test_hand_trace_serializes_and_plays_native_actions_to_end() -> None:
-    initial = deal(Rules(min_faan=0, melds_to_win=1), "east", random.Random(3))
+    initial = deal(Rules(min_faan=0, melds_to_win=1), random.Random(3))
     state = initial
     batches: list[dict[Direction, Action]] = []
     while not isinstance(state.phase, HandOver):

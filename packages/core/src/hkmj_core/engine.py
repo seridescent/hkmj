@@ -57,6 +57,7 @@ from hkmj_core.state import (
     WinSource,
 )
 from hkmj_core.tiles import (
+    DIRECTIONS,
     Bonus,
     Direction,
     Flower,
@@ -73,15 +74,19 @@ type ResolvedAction = tuple[Direction, Action]
 type StepResult = tuple[State, ResolvedAction | None]
 
 
-def deal(rules: Rules, prevailing: Direction, rng: Random) -> State:
+def deal(rules: Rules, rng: Random, *, prevailing: Direction | None = None) -> State:
     """Shuffle a full wall and deal a fresh hand, ready for the dealer's
     first discard.
 
     Determinism/provenance lives with the caller's `rng`; the dealt state
-    is self-contained. Dealing order is simplified to sequential blocks —
-    with a uniformly shuffled wall this matches the physical protocol in
-    distribution.
+    is self-contained. The prevailing wind is sampled for an independent
+    hand unless the caller supplies match state explicitly. Dealing order is
+    simplified to sequential blocks — with a uniformly shuffled wall this
+    matches the physical protocol in distribution.
     """
+    if prevailing is None:
+        prevailing = rng.choice(DIRECTIONS)
+
     tiles = list(full_tile_set())
     rng.shuffle(tiles)
     wall = tuple(tiles)

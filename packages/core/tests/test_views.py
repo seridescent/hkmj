@@ -16,7 +16,7 @@ from hkmj_core import (
 
 
 def test_views_redact_exactly_the_hidden_information() -> None:
-    state = deal(Rules(), "east", random.Random(11))
+    state = deal(Rules(), random.Random(11))
     assert isinstance(state.phase, AwaitingDiscard)
     dealer, drawn = state.phase.seat, state.phase.drawn
 
@@ -38,7 +38,7 @@ def test_views_redact_exactly_the_hidden_information() -> None:
 
 
 def test_public_phases_pass_through() -> None:
-    state = deal(Rules(), "east", random.Random(11))
+    state = deal(Rules(), random.Random(11))
     (seat,) = valid_actions(state)
     discard = next(
         action

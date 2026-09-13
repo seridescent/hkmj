@@ -62,7 +62,6 @@ class HandTask(vf.Task[HandData]):
 
 class HandTasksetConfig(vf.TasksetConfig):
     start_seed: int = 0
-    prevailing: Direction = "east"
     rules: Rules = Rules()
     scoring: Scoring = Scoring(
         points=full_spicy,
@@ -260,11 +259,7 @@ class HandTaskset(vf.Taskset[HandTask, HandTasksetConfig]):
                     name=f"hand#{seed}",
                     prompt=None,
                     seed=seed,
-                    initial_state=deal(
-                        self.config.rules,
-                        self.config.prevailing,
-                        Random(seed),
-                    ),
+                    initial_state=deal(self.config.rules, Random(seed)),
                     scoring=self.config.scoring,
                     prompt_contract=self.config.prompt_contract,
                 ),
