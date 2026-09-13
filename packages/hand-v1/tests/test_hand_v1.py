@@ -26,7 +26,9 @@ def test_forced_actions_skip_prompts_but_preserve_updates_and_replay(monkeypatch
     import asyncio
     from contextlib import asynccontextmanager
     from types import SimpleNamespace
+    from typing import cast
 
+    import verifiers.v1 as vf
     from hkmj_core import DIRECTIONS, HandTrace, player_view, valid_actions
     from hkmj_hand_v1 import taskset as module
     from hkmj_hand_v1.presentation import action_label, actions_by_label
@@ -88,9 +90,13 @@ def test_forced_actions_skip_prompts_but_preserve_updates_and_replay(monkeypatch
             label = "pass" if "pass" in labels else next(iter(labels))
             return SimpleNamespace(terminated=False, last_reply=f"[{label}]")
 
-    players = {seat: Player(seat) for seat in DIRECTIONS}
+    players: dict[str, Player] = {seat: Player(seat) for seat in DIRECTIONS}
     env = HandEnv(HandEnvConfig(taskset={"id": "hkmj-hand-v1"}))
-    asyncio.run(env.run(task, SimpleNamespace(**players)))
+    agents = vf.Agents(
+        env.config,
+        make=lambda name, _: cast(vf.Agent, players[name]),
+    )
+    asyncio.run(env.run(task, agents))
     assert calls
     assert any(isinstance(action, Pass) for _, action in forced)
     assert contract.all_passed_update_template in public_updates
