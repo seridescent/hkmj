@@ -101,16 +101,6 @@ from hkmj_core.state import (
     Win,
     WinSource,
 )
-from hkmj_core.traces import HandTrace
-from hkmj_core.views import (
-    AwaitingDiscardView,
-    HiddenDraw,
-    OpponentView,
-    PlayerView,
-    ViewPhase,
-    ViewedDraw,
-    player_view,
-)
 from hkmj_core.tiles import (
     BONUS_NUMBERS,
     DIRECTIONS,
@@ -135,6 +125,16 @@ from hkmj_core.tiles import (
     full_tile_set,
     next_seat,
     tile_sort_key,
+)
+from hkmj_core.traces import HandTrace
+from hkmj_core.views import (
+    AwaitingDiscardView,
+    HiddenDraw,
+    OpponentView,
+    PlayerView,
+    ViewedDraw,
+    ViewPhase,
+    player_view,
 )
 
 __all__ = [
@@ -216,10 +216,10 @@ __all__ = [
     "PrevailingWind",
     "PromoteKong",
     "Pung",
+    "ResolvedAction",
     "RobAction",
     "RobbingTheKong",
     "Rules",
-    "ResolvedAction",
     "Scoring",
     "Season",
     "SeasonOfOwnWind",

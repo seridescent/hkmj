@@ -1,10 +1,8 @@
 """Seat-local hand rendering and bracketed action parsing."""
 
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Literal
-
-from pydantic import BaseModel, ConfigDict
 
 from hkmj_core import (
     Action,
@@ -36,6 +34,7 @@ from hkmj_core import (
     Tile,
     Wind,
 )
+from pydantic import BaseModel, ConfigDict
 
 
 class HandPrompt(BaseModel):
@@ -204,7 +203,7 @@ def action_label(action: Action, view: PlayerView, prompt: HandPrompt) -> str:
             if not isinstance(view.phase, AwaitingClaims) or not isinstance(
                 view.phase.tile, Suited
             ):
-                raise ValueError("a chow action requires a suited discarded tile")
+                raise TypeError("a chow action requires a suited discarded tile")
             chow = Chow(view.phase.tile.suit, start)
             return "chow " + " ".join(tile_label(tile, prompt) for tile in chow.tiles)
 
@@ -218,7 +217,7 @@ def actions_by_label(
     }
 
 
-def parse_action(reply: str, actions_by_label: dict[str, Action]) -> Action | None:
+def parse_action(reply: str, actions_by_label: Mapping[str, Action]) -> Action | None:
     """Return the sole legal bracketed action, or reject an ambiguous reply."""
     bracketed = [
         " ".join(value.split()).casefold()

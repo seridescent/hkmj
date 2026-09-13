@@ -1,7 +1,6 @@
 from dataclasses import replace
 
 import pytest
-
 from hkmj_core import (
     DIRECTIONS,
     ORPHAN_KINDS,
@@ -56,10 +55,10 @@ from hkmj_core import (
     Win,
     WinByKong,
     WinByLastCatch,
-    WinSource,
     Wind,
-    meld_sort_key,
+    WinSource,
     count_faan,
+    meld_sort_key,
     tile_sort_key,
     valid_actions,
 )

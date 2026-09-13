@@ -2,8 +2,6 @@ import json
 from dataclasses import asdict, fields
 
 import pytest
-from pydantic import BaseModel, TypeAdapter
-
 from hkmj_core import (
     Action,
     AllKongs,
@@ -34,6 +32,7 @@ from hkmj_core import (
     Suited,
     Win,
 )
+from pydantic import BaseModel, TypeAdapter
 
 
 @pytest.mark.parametrize(

@@ -2,9 +2,8 @@ import asyncio
 
 import httpx
 import pytest
-from openai import AsyncOpenAI
-
 from hkmj_human import create_app
+from openai import AsyncOpenAI
 
 
 @pytest.mark.parametrize("chat", [False, True])

@@ -1,7 +1,5 @@
 import random
 
-from pydantic import TypeAdapter
-
 from hkmj_core import (
     Action,
     Direction,
@@ -13,6 +11,7 @@ from hkmj_core import (
     step,
     valid_actions,
 )
+from pydantic import TypeAdapter
 
 
 def test_hand_trace_serializes_and_plays_native_actions_to_end() -> None:

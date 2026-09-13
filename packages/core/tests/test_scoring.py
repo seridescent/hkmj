@@ -3,7 +3,6 @@ from dataclasses import asdict, replace
 from typing import Literal
 
 import pytest
-
 from hkmj_core import (
     DIRECTIONS,
     AwaitingClaims,
@@ -20,8 +19,8 @@ from hkmj_core import (
     State,
     Suited,
     Win,
-    WinSource,
     Wind,
+    WinSource,
     full_spicy,
     half_spicy,
     settle,

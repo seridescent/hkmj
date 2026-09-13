@@ -2,9 +2,6 @@ import random
 from collections import Counter
 
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
-
 from hkmj_core import (
     AwaitingClaims,
     AwaitingDiscard,
@@ -33,6 +30,8 @@ from hkmj_core import (
     tile_sort_key,
     valid_actions,
 )
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 SCORING = Scoring(points=full_spicy, payments="discarder_pays_half")
 

@@ -6,12 +6,10 @@ from itertools import count
 from random import Random
 from typing import Self, cast
 
-from pydantic import Field, TypeAdapter, model_validator
-
 import verifiers.v1 as vf
 from hkmj_core import (
-    Action,
     DIRECTIONS,
+    Action,
     Direction,
     FaanCount,
     Goulash,
@@ -30,6 +28,7 @@ from hkmj_core import (
     step,
     valid_actions,
 )
+from pydantic import Field, TypeAdapter, model_validator
 
 from hkmj_hand_v1.presentation import (
     HandPrompt,

@@ -1,9 +1,6 @@
 from collections import Counter
 
 import pytest
-from hypothesis import assume, given
-from hypothesis import strategies as st
-
 from hkmj_core import (
     CHOW_STARTS,
     DIRECTIONS,
@@ -23,6 +20,8 @@ from hkmj_core import (
     has_decomposition,
     meld_sort_key,
 )
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
 play_tiles = st.one_of(
     st.builds(Suited, st.sampled_from(SUITS), st.sampled_from(NUMBERS)),

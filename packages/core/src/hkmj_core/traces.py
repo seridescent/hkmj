@@ -23,5 +23,7 @@ class HandTrace:
         for actions in self.action_batches:
             state, _ = step(state, actions)
         if not isinstance(state.phase, HandOver):
-            raise ValueError("hand trace ends before the hand is over")
+            raise ValueError(  # noqa: TRY004 -- the action sequence is incomplete
+                "hand trace ends before the hand is over"
+            )
         return state

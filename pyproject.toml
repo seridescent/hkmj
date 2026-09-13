@@ -19,6 +19,6 @@ dev = [
     "hypothesis>=6.156.9",
     "pydantic>=2.12",
     "pytest>=9.1.1",
-    "ruff>=0.15.22",
+    "ruff>=0.16.7",
     "ty>=0.0.61",
 ]
